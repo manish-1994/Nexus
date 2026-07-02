@@ -1,0 +1,15 @@
+
+[7m[1m[36m RUN [39m[22m[27m [36mv1.6.1[39m [90md:/Nexus/frontend[39m
+
+
+[31m⎯⎯⎯⎯⎯⎯[1m[7m Failed Suites 1 [27m[22m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/components/Chat/MessageList.test.tsx [2m[ src/components/Chat/MessageList.test.tsx ][22m
+[31m[1mError[22m: No test suite found in file D:/Nexus/frontend/src/components/Chat/MessageList.test.tsx[39m
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [2mno tests[22m
+[2m   Start at [22m 12:53:08
+[2m   Duration [22m 2.65s[2m (transform 89ms, setup 309ms, collect 452ms, tests 0ms, environment 961ms, prepare 538ms)[22m
+

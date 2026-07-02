@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/.venv
+    environment:
+      - DATABASE_URL=sqlite:///./data/nexus.db
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+    env_file:
+      - ./backend/.env
+    command: uvicorn app:app --reload --host 0.0.0.0 --port 8000
+    networks:
+      - nexus-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    env_file:
+      - ./frontend/.env
+    command: npm run dev
+    depends_on:
+      - backend
+    networks:
+      - nexus-network
+    restart: unless-stopped
+
+  db:
+    image: postgres:15-alpine
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=nexus
+      - POSTGRES_PASSWORD=nexus_dev
+      - POSTGRES_DB=nexus
+    networks:
+      - nexus-network
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+
+networks:
+  nexus-network:
+    driver: bridge
