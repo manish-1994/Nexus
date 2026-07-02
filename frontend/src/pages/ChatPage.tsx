@@ -9,6 +9,7 @@ import { useChatStore } from '../stores/chatStore'
 import { useProviderStore } from '../stores/providerStore'
 import { useModelStore } from '../stores/modelStore'
 import { toast } from 'sonner'
+import { parseProviderError } from '../utils/providerErrorParser'
 
 function ChatPage() {
   const queryClient = useQueryClient()
@@ -24,7 +25,8 @@ function ChatPage() {
     fetchConversations,
     fetchMessages,
     sendMessage,
-    stopStreaming,
+    retryMessage,
+    cancelStreaming,
     clearError,
   } = useChatStore()
 
@@ -44,49 +46,49 @@ function ChatPage() {
   }
 
   const handleSendMessage = async (content: string) => {
-  console.log('[ChatPage] handleSendMessage content=', content, 'providerId=', selectedProviderId, 'model=', selectedModel?.name)
-  if (!selectedProviderId) {
-  toast.error('Please select a provider first')
-  return
-  }
-  if (!selectedModel) {
-  toast.error('Please select a model first')
-  return
-  }
-  
-  const modelName = selectedModel.name || selectedModel.display_name || ''
-  if (!modelName) {
-  toast.error('Invalid model selected')
-  return
-  }
-  
-  const state = useChatStore.getState()
-  if (state.isStreaming) {
-    console.log('[ChatPage] send blocked: already streaming')
-    return
-  }
-  
-  const current = state.currentConversation
-  if (!current?.id) {
-  const title = content.slice(0, 40) + (content.length > 40 ? '...' : '')
-  console.log('[ChatPage] creating conversation title=', title)
-  const newConversation = await chatApi.createConversation({ title })
-  console.log('[ChatPage] conversation created id=', newConversation.id)
-  useChatStore.setState({ currentConversation: newConversation })
-  queryClient.invalidateQueries({ queryKey: ['conversations'] })
-  await sendMessage(newConversation.id, content, selectedProviderId, modelName)
-  } else {
-  const conversationId = current.id
-  console.log('[ChatPage] using existing conversation id=', conversationId)
-  await sendMessage(conversationId, content, selectedProviderId, modelName)
-  const convo = useChatStore.getState().currentConversation
-  if (convo && (convo.title === 'New Conversation' || !convo.title)) {
-  const title = content.slice(0, 40) + (content.length > 40 ? '...' : '')
-  const updated = await chatApi.updateConversation(conversationId, { title })
-  useChatStore.setState({ currentConversation: updated })
-  queryClient.invalidateQueries({ queryKey: ['conversations'] })
-  }
-  }
+    console.log('[ChatPage] handleSendMessage content=', content, 'providerId=', selectedProviderId, 'model=', selectedModel?.name)
+    if (!selectedProviderId) {
+      toast.error('Please select a provider first')
+      return
+    }
+    if (!selectedModel) {
+      toast.error('Please select a model first')
+      return
+    }
+
+    const modelName = selectedModel.name || selectedModel.display_name || ''
+    if (!modelName) {
+      toast.error('Invalid model selected')
+      return
+    }
+
+    const state = useChatStore.getState()
+    if (state.isStreaming) {
+      console.log('[ChatPage] send blocked: already streaming')
+      return
+    }
+
+    const current = state.currentConversation
+    if (!current?.id) {
+      const title = content.slice(0, 40) + (content.length > 40 ? '...' : '')
+      console.log('[ChatPage] creating conversation title=', title)
+      const newConversation = await chatApi.createConversation({ title })
+      console.log('[ChatPage] conversation created id=', newConversation.id)
+      useChatStore.setState({ currentConversation: newConversation })
+      queryClient.invalidateQueries({ queryKey: ['conversations'] })
+      await sendMessage(newConversation.id, content, selectedProviderId, modelName)
+    } else {
+      const conversationId = current.id
+      console.log('[ChatPage] using existing conversation id=', conversationId)
+      await sendMessage(conversationId, content, selectedProviderId, modelName)
+      const convo = useChatStore.getState().currentConversation
+      if (convo && (convo.title === 'New Conversation' || !convo.title)) {
+        const title = content.slice(0, 40) + (content.length > 40 ? '...' : '')
+        const updated = await chatApi.updateConversation(conversationId, { title })
+        useChatStore.setState({ currentConversation: updated })
+        queryClient.invalidateQueries({ queryKey: ['conversations'] })
+      }
+    }
   }
 
   const handleNewConversation = async () => {
@@ -116,9 +118,43 @@ function ChatPage() {
     toast.success('Conversation renamed')
   }
 
+  const handleRetry = async () => {
+    await retryMessage()
+  }
+
+  const handleCancel = () => {
+    cancelStreaming()
+  }
+
   const currentConversation = useChatStore((state) => state.currentConversation)
   const selectedConversationId = currentConversation?.id ?? null
-
+  
+  // Auto-switch provider on credit/quota errors
+  useEffect(() => {
+    if (!error) return
+    const parsed = parseProviderError(error)
+    if (!parsed.canSwitchProvider || parsed.suggestedAction !== 'switch_provider') return
+    if (!selectedProviderId) return
+  
+    const state = useProviderStore.getState()
+    const alternative = state.providers
+      .filter((p) => p.is_active && p.id !== selectedProviderId)
+      .sort((a, b) => b.priority - a.priority)[0]
+    if (!alternative) return
+  
+    const providerName = alternative.name || alternative.type
+    toast.error(parsed.title, {
+      description: parsed.description,
+      action: {
+        label: `Switch to ${providerName}`,
+        onClick: () => {
+          useProviderStore.getState().selectProvider(alternative.id)
+          toast.success(`Switched to ${providerName}`)
+        },
+      },
+    })
+  }, [error, selectedProviderId])
+  
   if (isLoading && conversations.length === 0) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -129,7 +165,7 @@ function ChatPage() {
       </div>
     )
   }
-
+  
   return (
     <div className="flex h-screen">
       <ConversationSidebar
@@ -152,12 +188,14 @@ function ChatPage() {
               messages={messages}
               isLoading={isLoading}
               streamingContent={streamingContent}
+              onRetry={handleRetry}
+              onCancel={handleCancel}
             />
             <MessageInput
               onSend={handleSendMessage}
               isLoading={isStreaming}
               isStreaming={isStreaming}
-              onStopStreaming={stopStreaming}
+              onStopStreaming={cancelStreaming}
               canSend={!!selectedProviderId && !!selectedModel}
             />
           </>

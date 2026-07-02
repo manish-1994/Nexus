@@ -371,6 +371,83 @@ Successfully implemented the AI Runtime Gateway as the unified entry point for a
 4. Add provider failover logic based on priority
 5. Implement cost estimation in frontend before sending requests
 
+## Global Error Handling & Toast Notification System
+
+**Date**: 2026-07-02
+**Status**: ✅ Complete
+
+### Summary
+
+Implemented a centralized error handling and toast notification system using `sonner`. All backend, frontend, network, provider, streaming, and validation errors now display toast notifications. The system ensures the UI never gets stuck in loading/streaming states.
+
+### Files Created
+
+- `frontend/src/utils/toast.ts` — Toast utility functions and error message parsers
+
+### Files Modified
+
+- `frontend/src/App.tsx` — Added global `<Toaster>` component
+- `frontend/src/api/client.ts` — Global axios interceptor with HTTP status-specific toasts
+- `frontend/src/api/chat.ts` — Stream parsing with error toast on failure
+- `frontend/src/stores/chatStore.ts` — Error state reset + toasts for chat operations
+- `frontend/src/stores/providerStore.ts` — Error state reset + toasts for provider operations
+- `frontend/src/pages/ProvidersPage.tsx` — Updated mutation handlers with toast descriptions
+- `backend/app.py` — Global exception handlers for ValueError and Exception
+
+### Key Features
+
+#### Backend Global Exception Handlers
+
+- `Exception` handler — Catch-all returning JSON 500 with detail
+- `ValueError` handler — Returns JSON 400 with validation message
+
+#### Frontend Axios Interceptor
+
+- HTTP 400 → "Bad Request"
+- HTTP 401 → "Authentication Error: Invalid or expired credentials."
+- HTTP 403 → "Access Denied"
+- HTTP 404 → "Not Found"
+- HTTP 429 → "Rate Limited"
+- HTTP 500 → "Server Error"
+- HTTP 502 → "Bad Gateway: Unable to reach the backend."
+- HTTP 503 → "Service Unavailable"
+- HTTP 504 → "Gateway Timeout"
+- Network errors → "Network Error: Unable to reach the backend."
+
+#### Chat Error Handling
+
+- Streaming failure → stops streaming, resets Send button, removes spinner, shows error toast
+- Missing provider → "Please select a provider first"
+- Missing model → "Please select a model first"
+- Invalid model → "Invalid model selected"
+- Success → "Message sent"
+
+#### Provider Error Handling
+
+- Discover models failure → "Failed to discover models" with reason
+- Connection test failure → "Connection test failed" with reason
+- Create/update/delete failure → specific error with description
+- Info toasts for in-progress operations ("Discovering models...", "Testing connection...")
+
+### Toast Types
+
+| Type | Color | Usage |
+|------|-------|-------|
+| Success | Green | Provider added, message sent, conversation created, models discovered, connection successful |
+| Error | Red | Network, backend, provider, auth, streaming, validation, timeout, database errors |
+| Warning | Yellow | Provider returned no models, conversation empty, streaming interrupted |
+| Info | Blue | Discovering models, testing connection, loading conversation |
+
+### Acceptance Criteria
+
+- ✅ Every error displays a toast
+- ✅ Full error logged to console (development)
+- ✅ Loading/streaming state reset on error
+- ✅ UI never left hanging
+- ✅ No duplicate rapid toasts
+- ✅ Toasts stack nicely and don't block UI
+- ✅ HTTP 400/401/403/404/429/500/502/503/504 all have specific messages
+
 ## Files Created
 
 ### Backend
@@ -537,6 +614,67 @@ Successfully implemented the AI Runtime Gateway as the unified entry point for a
 ### Frontend Tests
 - ✅ Test setup configured
 - ✅ Component scaffolding complete
+
+## Smart Provider & Model Validation
+
+### Summary
+Intelligent provider error detection and auto-switch logic to improve user experience when providers fail due to credits, quota, auth, or model availability issues.
+
+### Files Created
+
+- `frontend/src/utils/providerErrorParser.ts` - Centralized error parser with regex patterns for detecting provider-specific errors
+
+### Files Modified
+
+- `frontend/src/stores/chatStore.ts` - Updated error handling to use `parseProviderError()` for streaming errors
+- `frontend/src/api/chat.ts` - Updated streaming SSE parser to throw on `parsed.error`
+- `frontend/src/pages/ChatPage.tsx` - Added auto-switch provider useEffect with toast action button
+
+### Implementation Details
+
+#### ProviderErrorParser Utility
+Centralized error parsing with regex patterns for:
+- **Credit/quota errors**: "insufficient credits", "payment required", 402 status, "quota exceeded"
+- **Auth errors**: "invalid api key", "unauthorized", 401, 403 status
+- **Model not found**: "model not found", "invalid model"
+- **Context too large**: "context length", "too many tokens"
+- **Provider offline**: "connection", "network", "timeout"
+
+#### Auto-Switch Provider Logic
+When a credit/quota error is detected:
+1. Find alternative active providers sorted by priority
+2. Show toast with "Switch to [Provider]" action button
+3. On click: switch provider, clear error, and retry message
+4. If no alternative available: show error toast without action button
+
+#### Error Severity Mapping
+- Credit/quota errors → `warning` severity
+- Auth errors → `error` severity
+- Model not found → `error` severity
+- Context too large → `warning` severity
+- Provider offline → `error` severity
+
+### Backend Changes
+- Streaming SSE parser now includes error details in `data: {"error": {"type": "...", "message": "..."}}` format
+- Backend passes through provider error responses without modification
+
+### Frontend Changes
+- `chatStore.sendMessage()` uses `parseProviderError()` instead of generic error message
+- `ChatPage` has `useEffect` that watches for `streamError` and triggers auto-switch
+- Toast action button calls `handleSwitchProvider()` which updates provider selection and retries
+
+### Acceptance Criteria
+
+- ✅ Provider-specific error messages displayed to user
+- ✅ Credit/quota errors trigger auto-switch toast
+- ✅ Auth errors show clear "invalid API key" message
+- ✅ Model not found errors suggest checking model availability
+- ✅ Context too large errors suggest using a smaller context
+- ✅ Provider offline errors suggest checking connection
+- ✅ Auto-switch respects provider priority
+- ✅ No auto-switch when no alternative provider available
+- ✅ Toast action button switches provider and retries
+- ✅ Works with every provider type
 
 ## Known Issues
 

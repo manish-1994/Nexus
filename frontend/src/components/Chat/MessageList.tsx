@@ -6,6 +6,8 @@ interface MessageListProps {
   messages: Message[]
   isLoading: boolean
   streamingContent: string
+  onRetry?: () => void
+  onCancel?: () => void
 }
 
 function formatTime(timestamp: string): string {
@@ -23,7 +25,10 @@ function formatTime(timestamp: string): string {
   return date.toLocaleDateString()
 }
 
-const MessageBubble = memo(function MessageBubble({ message }: { message: Message }) {
+const MessageBubble = memo(function MessageBubble({ message, onRetry, onCancel }: { message: Message; onRetry?: () => void; onCancel?: () => void }) {
+  const isThinking = message.isThinking
+  const hasError = !!message.streamError
+
   return (
     <div
       className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
@@ -32,6 +37,8 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Messag
         className={`max-w-[75%] rounded-2xl px-4 py-3 shadow-sm ${
           message.role === 'user'
             ? 'bg-blue-600 text-white rounded-br-sm'
+            : hasError
+            ? 'bg-red-50 text-red-900 border border-red-200 rounded-bl-sm'
             : message.role === 'assistant'
             ? 'bg-white text-gray-900 border border-gray-200 rounded-bl-sm'
             : 'bg-gray-100 text-gray-700 rounded-lg'
@@ -42,24 +49,56 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Messag
             className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
               message.role === 'user'
                 ? 'bg-blue-500 text-white'
+                : hasError
+                ? 'bg-red-500 text-white'
                 : message.role === 'assistant'
                 ? 'bg-emerald-500 text-white'
                 : 'bg-gray-400 text-white'
             }`}
           >
-            {message.role === 'user' ? 'U' : message.role === 'assistant' ? 'AI' : 'S'}
+            {message.role === 'user' ? 'U' : hasError ? '!' : message.role === 'assistant' ? 'AI' : 'S'}
           </div>
           <div className="text-xs font-semibold">
-            {message.role === 'user' ? 'You' : message.role === 'assistant' ? 'Assistant' : 'System'}
+            {message.role === 'user' ? 'You' : hasError ? 'Error' : message.role === 'assistant' ? 'Assistant' : 'System'}
           </div>
-          <div className={`text-xs ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500'}`}>
+          <div className={`text-xs ${message.role === 'user' ? 'text-blue-100' : hasError ? 'text-red-500' : 'text-gray-500'}`}>
             {formatTime(message.created_at)}
           </div>
         </div>
-        <div className="whitespace-pre-wrap break-words leading-relaxed prose prose-sm max-w-none">
-          <ReactMarkdown>{message.content}</ReactMarkdown>
-        </div>
-        {message.tokens_used && (
+
+        {isThinking ? (
+          <div className="flex items-center gap-1 py-1">
+            <span className="text-gray-500 text-sm">Thinking</span>
+            <span className="flex gap-1">
+              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]" />
+              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
+              <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" />
+            </span>
+          </div>
+        ) : (
+          <div className="whitespace-pre-wrap break-words leading-relaxed prose prose-sm max-w-none">
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          </div>
+        )}
+
+        {hasError && (
+          <div className="flex gap-2 mt-3">
+            <button
+              onClick={onRetry}
+              className="px-3 py-1.5 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition-colors"
+            >
+              Retry
+            </button>
+            <button
+              onClick={onCancel}
+              className="px-3 py-1.5 bg-gray-200 text-gray-700 text-xs rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+        {message.tokens_used && !hasError && (
           <div className={`text-xs mt-2 ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500'}`}>
             {message.tokens_used} tokens
           </div>
@@ -69,7 +108,7 @@ const MessageBubble = memo(function MessageBubble({ message }: { message: Messag
   )
 })
 
-function MessageList({ messages, isLoading, streamingContent }: MessageListProps) {
+function MessageList({ messages, isLoading, streamingContent, onRetry, onCancel }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const userHasScrolledUp = useRef(false)
@@ -89,19 +128,12 @@ function MessageList({ messages, isLoading, streamingContent }: MessageListProps
 
   const displayMessages = useMemo(() => {
     if (streamingContent) {
-      const hasRealAssistant = messages.some((m) => m.role === 'assistant')
-      if (hasRealAssistant) {
-        const next = [...messages]
-        const lastIdx = next.map((m) => m.role).lastIndexOf('assistant')
-        if (lastIdx >= 0) {
-          next[lastIdx] = { ...next[lastIdx], content: streamingContent }
-        }
-        return next
+      const next = [...messages]
+      const lastIdx = next.map((m) => m.role).lastIndexOf('assistant')
+      if (lastIdx >= 0) {
+        next[lastIdx] = { ...next[lastIdx], content: streamingContent, isThinking: false }
       }
-      return [
-        ...messages,
-        { id: -1, role: 'assistant', content: streamingContent, created_at: new Date().toISOString() } as Message,
-      ]
+      return next
     }
     return messages
   }, [messages, streamingContent])
@@ -139,7 +171,12 @@ function MessageList({ messages, isLoading, streamingContent }: MessageListProps
       ) : (
         <div className="space-y-4">
           {displayMessages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
+            <MessageBubble
+              key={message.id}
+              message={message}
+              onRetry={message.streamError ? onRetry : undefined}
+              onCancel={message.streamError ? onCancel : undefined}
+            />
           ))}
           <div ref={bottomRef} />
         </div>

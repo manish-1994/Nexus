@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { chatApi } from '../api/chat'
 import type { Message, Conversation } from '../types/chat'
-import { showError, showSuccess } from '../utils/toast'
+import { showError, showSuccess, showWarning } from '../utils/toast'
+import { parseProviderError, getProviderDisplayName } from '../utils/providerErrorParser'
 
 interface ChatState {
   conversations: Conversation[]
@@ -11,10 +12,12 @@ interface ChatState {
   isStreaming: boolean
   streamingContent: string
   error: string | null
+  retryData: { conversationId: number; content: string; providerId: number; model: string } | null
   fetchConversations: () => Promise<void>
   fetchMessages: (conversationId: number) => Promise<void>
   sendMessage: (conversationId: number, content: string, providerId: number, model: string) => Promise<void>
-  stopStreaming: () => void
+  retryMessage: () => Promise<void>
+  cancelStreaming: () => void
   setCurrentConversation: (conversation: Conversation | null) => void
   clearError: () => void
 }
@@ -27,6 +30,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isStreaming: false,
   streamingContent: '',
   error: null,
+  retryData: null,
 
   fetchConversations: async () => {
     set({ isLoading: true, error: null })
@@ -53,8 +57,34 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   sendMessage: async (conversationId, content, providerId, model) => {
-    set({ isLoading: true, isStreaming: true, streamingContent: '', error: null })
-
+    const userMessage: Message = {
+      id: Date.now(),
+      role: 'user',
+      content,
+      provider: model.split('/')[0],
+      model,
+      created_at: new Date().toISOString(),
+    }
+  
+    const thinkingPlaceholder: Message = {
+      id: Date.now() + 0.5,
+      role: 'assistant',
+      content: 'Thinking...',
+      provider: model.split('/')[0],
+      model,
+      created_at: new Date().toISOString(),
+      isThinking: true,
+    }
+  
+    set((state) => ({
+      messages: [...state.messages, userMessage, thinkingPlaceholder],
+      isStreaming: true,
+      streamingContent: '',
+      error: null,
+      retryData: null,
+    }))
+  
+    let firstChunk = true
     try {
       await chatApi.sendMessage({
         conversation_id: conversationId,
@@ -63,45 +93,68 @@ export const useChatStore = create<ChatState>((set, get) => ({
         model,
         stream: true,
       }, (chunk) => {
-        set((state) => ({
-          streamingContent: state.streamingContent + chunk,
-        }))
+        if (firstChunk) {
+          firstChunk = false
+          set((state) => ({
+            messages: state.messages.map((m) =>
+              m.id === thinkingPlaceholder.id
+                ? { ...m, content: chunk, isThinking: false }
+                : m,
+            ),
+            streamingContent: chunk,
+          }))
+        } else {
+          set((state) => ({
+            streamingContent: state.streamingContent + chunk,
+          }))
+        }
       })
-
-      const finalContent = get().streamingContent
-      if (finalContent) {
-        set((state) => ({
-          messages: [
-            ...state.messages,
-            {
-              id: Date.now(),
-              role: 'assistant',
-              content: finalContent,
-              provider: model.split('/')[0],
-              model,
-              created_at: new Date().toISOString(),
-            },
-          ],
-          isLoading: false,
-          isStreaming: false,
-          streamingContent: '',
-        }))
-        showSuccess('Message sent')
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to send message'
-      showError('Failed to send message', { description: message })
-      set({
-        error: message,
-        isLoading: false,
+  
+    const finalContent = get().streamingContent
+    if (finalContent) {
+      set((state) => ({
+        messages: state.messages.map((m) =>
+          m.id === thinkingPlaceholder.id
+            ? { ...m, content: finalContent, isThinking: false, streamError: undefined }
+            : m,
+        ),
         isStreaming: false,
         streamingContent: '',
-      })
+      }))
+      showSuccess('Message sent')
     }
+  } catch (err) {
+    const providerName = getProviderDisplayName(model.split('/')[0])
+    const parsed = parseProviderError(err, providerName)
+    const toastType = parsed.severity === 'warning' ? showWarning : showError
+    toastType(parsed.title, { description: parsed.description })
+    console.error('[Chat] Provider error:', err)
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === thinkingPlaceholder.id
+          ? { ...m, content: 'Unable to generate a response.', isThinking: false, streamError: parsed.title }
+          : m,
+      ),
+      isStreaming: false,
+      streamingContent: '',
+      error: parsed.title,
+      retryData: parsed.canRetry ? { conversationId, content, providerId, model } : null,
+    }))
+  }
   },
 
-  stopStreaming: () => {
-    set({ isStreaming: false, isLoading: false })
+  retryMessage: async () => {
+    const { retryData, messages } = get()
+    if (!retryData) return
+    const { conversationId, providerId, model } = retryData
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')
+    if (!lastUserMsg) return
+    set({ retryData: null })
+    await get().sendMessage(conversationId, lastUserMsg.content, providerId, model)
+  },
+  
+  cancelStreaming: () => {
+    set({ isStreaming: false, streamingContent: '', retryData: null })
   },
 
   setCurrentConversation: (conversation) => {

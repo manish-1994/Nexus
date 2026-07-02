@@ -1,6 +1,8 @@
 from typing import List, Optional
 from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload
 from models.conversation import Conversation
+from models.message import Message
 from repositories.conversation_repository import ConversationRepository
 
 
@@ -16,8 +18,13 @@ class ConversationService:
         return self.repository.find_all(skip=skip, limit=limit)
 
     def get(self, conversation_id: int) -> Optional[Conversation]:
-        """Get a single conversation by ID."""
-        return self.repository.find_by_id(conversation_id)
+        """Get a single conversation by ID with messages eagerly loaded."""
+        return (
+            self.db.query(Conversation)
+            .options(joinedload(Conversation.messages))
+            .filter(Conversation.id == conversation_id)
+            .first()
+        )
 
     def create(self, data: dict) -> Conversation:
         """Create a new conversation."""

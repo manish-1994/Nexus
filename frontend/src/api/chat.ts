@@ -2,6 +2,8 @@ import { apiClient } from './client'
 import type { Message, Conversation, ChatRequest } from '../types/chat'
 import { showError } from '../utils/toast'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+
 export const chatApi = {
   async getConversations(): Promise<Conversation[]> {
     const response = await apiClient.get('/conversations')
@@ -35,21 +37,36 @@ export const chatApi = {
   async sendMessage(
     data: ChatRequest,
     onChunk?: (chunk: string) => void
-  ): Promise<ReadableStream<Uint8Array> | null> {
+  ): Promise<void> {
     try {
-      const response = await apiClient.post('/chat', data, {
-        responseType: 'stream',
+      const response = await fetch(`${API_URL}/api/v1/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
       })
 
-      if (!response.data) return null
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`HTTP ${response.status}: ${errorText}`)
+      }
 
-      const reader = response.data.getReader()
+      if (!response.body) {
+        throw new Error('Response body is null')
+      }
+
+      const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
+      let streamDone = false
 
-      while (true) {
+      while (!streamDone) {
         const { done, value } = await reader.read()
-        if (done) break
+        if (done) {
+          streamDone = true
+          break
+        }
 
         buffer += decoder.decode(value, { stream: true })
         const lines = buffer.split('\n')
@@ -62,15 +79,17 @@ export const chatApi = {
           if (payload === '[DONE]') continue
           try {
             const parsed = JSON.parse(payload)
+            if (parsed.error) {
+              throw new Error(parsed.error)
+            }
             const content = parsed.content ?? parsed
             if (typeof content === 'string') onChunk?.(content)
-          } catch {
+          } catch (parseErr) {
+            if (parseErr instanceof Error && parseErr.message !== 'Unexpected token') throw parseErr
             if (typeof payload === 'string') onChunk?.(payload)
           }
         }
       }
-
-      return null
     } catch (err) {
       showError('Failed to send message', {
         description: err instanceof Error ? err.message : 'Unknown error',

@@ -8,6 +8,8 @@ export interface Message {
   tokens_used?: number
   created_at: string
   updated_at?: string
+  isThinking?: boolean
+  streamError?: string
 }
 
 export interface Conversation {
