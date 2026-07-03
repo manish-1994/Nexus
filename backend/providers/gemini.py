@@ -92,7 +92,7 @@ class GeminiProvider(BaseProvider):
         async with httpx.AsyncClient() as client:
             async with client.stream(
                 "POST",
-                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?key={self.api_key}",
+                f"https://generativelanguage.googleapis.com/v1beta/models/{model}:streamGenerateContent?alt=sse&key={self.api_key}",
                 json={
                     "contents": contents,
                     **kwargs,
@@ -106,15 +106,21 @@ class GeminiProvider(BaseProvider):
                     line = line.strip()
                     if not line:
                         continue
+                    # SSE format: lines start with "data: "
+                    if line.startswith("data: "):
+                        line = line[6:]
+                    elif not line.startswith("{"):
+                        continue
                     self.logger.info("Gemini stream line: %s", line[:200])
                     try:
                         data = json.loads(line)
                         if "candidates" in data and len(data["candidates"]) > 0:
                             candidate = data["candidates"][0]
                             if "content" in candidate and "parts" in candidate["content"]:
-                                part_text = candidate["content"]["parts"][0].get("text", "")
-                                if part_text:
-                                    self.logger.info("Gemini stream yielding text len=%s", len(part_text))
-                                    yield part_text
+                                for part in candidate["content"]["parts"]:
+                                    part_text = part.get("text", "")
+                                    if part_text:
+                                        self.logger.info("Gemini stream yielding text len=%s", len(part_text))
+                                        yield part_text
                     except json.JSONDecodeError as e:
                         self.logger.warning("Gemini stream JSON parse error: %s, line: %s", e, line[:200])

@@ -5,12 +5,23 @@ from models.base import BaseModel
 
 
 class ProviderType(str, enum.Enum):
-    OPENROUTER = "openrouter"
-    GROQ = "groq"
-    OLLAMA = "ollama"
-    GEMINI = "gemini"
-    LMSTUDIO = "lmstudio"
     OPENAI_COMPATIBLE = "openai_compatible"
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
+    GROQ = "groq"
+    OPENROUTER = "openrouter"
+    OLLAMA = "ollama"
+    LMSTUDIO = "lmstudio"
+    NVIDIA_NIM = "nvidia_nim"
+    AZURE_OPENAI = "azure_openai"
+    MISTRAL = "mistral"
+    TOGETHER_AI = "together_ai"
+    DEEPSEEK = "deepseek"
+    COHERE = "cohere"
+    XAI = "xai"
+    PERPLEXITY = "perplexity"
+    CUSTOM = "custom"
 
 
 class ProviderStatus(str, enum.Enum):

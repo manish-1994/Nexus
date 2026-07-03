@@ -1,4 +1,5 @@
 import { apiClient } from './client'
+import { ProviderType } from '../types/provider'
 
 export interface Model {
   id: number
@@ -7,6 +8,9 @@ export interface Model {
   display_name: string | null
   max_tokens: number | null
   supports_streaming: boolean
+  supports_vision: boolean
+  supports_reasoning: boolean
+  is_deprecated: boolean
   is_active: boolean
   description: string | null
 }
@@ -14,7 +18,7 @@ export interface Model {
 export interface Provider {
   id: number
   name: string
-  type: string
+  type: ProviderType
   api_key: string
   base_url: string | null
   is_active: boolean
@@ -66,6 +70,10 @@ export const providersApi = {
   },
   getCapabilities: async (id: number): Promise<{ capabilities: Record<string, boolean> }> => {
     const response = await apiClient.get(`/ai/providers/${id}/capabilities`)
+    return response.data
+  },
+  validate: async (data: { name: string; type: string; base_url?: string; api_key?: string }): Promise<{ valid: boolean; errors: string[] }> => {
+    const response = await apiClient.post('/providers/validate', data)
     return response.data
   },
 }

@@ -19,27 +19,35 @@ class MessageResponse(MessageBase):
   created_at: datetime
 
 class ConversationBase(BaseSchema):
-  title: str
-  user_id: Optional[str] = None
+    title: str
+    user_id: Optional[str] = None
+    last_message_preview: Optional[str] = None
+    provider_name: Optional[str] = None
+    model_name: Optional[str] = None
+    message_count: Optional[int] = 0
 
 class ConversationCreate(ConversationBase):
-  pass
+    pass
 
 class ConversationUpdate(BaseSchema):
-  title: Optional[str] = None
+    title: Optional[str] = None
+    last_message_preview: Optional[str] = None
+    provider_name: Optional[str] = None
+    model_name: Optional[str] = None
 
 class ConversationResponse(ConversationBase):
-  id: int
-  created_at: datetime
-  updated_at: datetime
-  messages: List[MessageResponse] = []
+    id: int
+    created_at: datetime
+    updated_at: datetime
+    messages: List[MessageResponse] = []
 
 class ChatRequest(BaseModel):
   conversation_id: int
   content: str
-  provider_id: int
-  model: str
+  provider_id: Optional[int] = None
+  model: Optional[str] = None
   stream: bool = True
+  agent_id: Optional[int] = None
 
 class ChatResponse(BaseModel):
   conversation_id: int

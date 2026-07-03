@@ -118,6 +118,25 @@ async function waitForHealth() {
   });
 }
 
+async function checkBackendHealth() {
+  return new Promise((resolve) => {
+    const req = http.get(HEALTH_URL, (res) => {
+      let body = '';
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => {
+        resolve(res.statusCode === 200);
+      });
+    });
+    req.on('error', () => {
+      resolve(false);
+    });
+    req.setTimeout(3000, () => {
+      req.destroy();
+      resolve(false);
+    });
+  });
+}
+
 function startBackend() {
   return new Promise((resolve, reject) => {
     log('Runner', 'Starting backend server...');
@@ -214,22 +233,46 @@ function startFrontend() {
 }
 
 async function ensurePortsFree() {
-  const backendPid = await findProcessOnPort(BACKEND_PORT);
   const frontendPid = await findProcessOnPort(FRONTEND_PORT);
 
-  if (backendPid) {
-    log('Runner', `Found backend process on port ${BACKEND_PORT} (PID: ${backendPid})`);
-    await killProcess(backendPid);
-  }
   if (frontendPid) {
     log('Runner', `Found frontend process on port ${FRONTEND_PORT} (PID: ${frontendPid})`);
     await killProcess(frontendPid);
-  }
-
-  if (backendPid || frontendPid) {
-    log('Runner', `Waiting for ports to be released...`);
+    log('Runner', 'Waiting for frontend port to be released...');
     await new Promise(resolve => setTimeout(resolve, PORT_RELEASE_DELAY));
   }
+}
+
+async function resolveBackendPort() {
+  const backendPid = await findProcessOnPort(BACKEND_PORT);
+
+  if (!backendPid) {
+    log('Runner', `Port ${BACKEND_PORT} is free — will start fresh backend`);
+    return { action: 'start', pid: null };
+  }
+
+  log('Runner', `Port ${BACKEND_PORT} is occupied (PID: ${backendPid}) — checking if it is a healthy NEXUS backend...`);
+  const isHealthy = await checkBackendHealth();
+
+  if (isHealthy) {
+    log('Runner', `Existing backend on port ${BACKEND_PORT} is healthy — REUSING (PID: ${backendPid})`);
+    return { action: 'reuse', pid: backendPid };
+  }
+
+  log('Runner', `Process on port ${BACKEND_PORT} is NOT a healthy NEXUS backend — terminating stale process (PID: ${backendPid})...`);
+  await killProcess(backendPid, true);
+  log('Runner', 'Waiting for port to be released...');
+  await new Promise(resolve => setTimeout(resolve, PORT_RELEASE_DELAY));
+
+  // Verify port is now free
+  const stillOccupied = await findProcessOnPort(BACKEND_PORT);
+  if (stillOccupied) {
+    log('Runner', `WARNING: Port ${BACKEND_PORT} still occupied by PID ${stillOccupied} after kill attempt`);
+  } else {
+    log('Runner', `Port ${BACKEND_PORT} released — will start fresh backend`);
+  }
+
+  return { action: 'start', pid: null };
 }
 
 async function cleanup() {
@@ -251,7 +294,7 @@ async function cleanup() {
     frontendProcess = null;
   }
 
-  // Stop backend
+  // Stop backend (only if we own it)
   if (backendProcess) {
     try {
       backendProcess.kill('SIGTERM');
@@ -262,7 +305,7 @@ async function cleanup() {
     backendProcess = null;
   }
 
-  // Ensure ports are free by killing any remaining processes
+  // Clean up frontend port
   await ensurePortsFree();
 
   log('Runner', 'Shutdown complete');
@@ -271,17 +314,24 @@ async function cleanup() {
 async function main() {
   log('Runner', 'Starting NEXUS V3 development runner...');
 
-  // Step 1: Ensure ports are free before starting
-  log('Runner', 'Checking for existing processes...');
+  // Step 1: Clean up frontend port
+  log('Runner', 'Checking for existing frontend processes...');
   await ensurePortsFree();
 
-  // Step 2: Start backend
-  try {
-    await startBackend();
-  } catch (error) {
-    log('Runner', `Failed to start backend: ${error.message}`);
-    await cleanup();
-    process.exit(1);
+  // Step 2: Intelligently resolve backend port
+  const backendResolution = await resolveBackendPort();
+
+  // Step 3: Start backend only if needed
+  if (backendResolution.action === 'reuse') {
+    log('Runner', 'Backend already running — skipping backend startup');
+  } else {
+    try {
+      await startBackend();
+    } catch (error) {
+      log('Runner', `Failed to start backend: ${error.message}`);
+      await cleanup();
+      process.exit(1);
+    }
   }
 
   // Step 4: Start frontend

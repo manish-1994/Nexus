@@ -592,6 +592,55 @@ Intelligent provider error detection and auto-switch logic to improve user exper
 - ✅ Toast action button switches provider and retries
 - ✅ Works with every provider type
 
+## Bug Fix: Conversation Creation Fails - Missing Database Columns
+
+**Date**: 2026-07-02
+**Status**: ✅ Complete
+
+### Problem Description
+
+POST /api/v1/conversations returned HTTP 500 Internal Server Error with SQLite error:
+```
+table conversations has no column named last_message_preview
+```
+
+### Root Cause Analysis
+
+The Conversation model was updated with new metadata fields (`last_message_preview`, `provider_name`, `model_name`) but the SQLite database schema was not migrated. SQLAlchemy's `create_all()` only creates new tables, it does not alter existing tables. The running backend server was using the old database file which lacked the new columns.
+
+### Fix Applied
+
+1. Stopped the running backend server
+2. Deleted the old SQLite database file (`backend/data/nexus.db`)
+3. Restarted the backend server, which recreated the database with the new schema including all new columns and indexes
+
+### Files Modified
+
+- `backend/models/conversation.py` - Added new fields and index
+- `backend/schemas/chat.py` - Added fields to schemas
+- `backend/services/conversation_service.py` - Added `get_all_with_metadata()` method
+- `backend/api/chat.py` - Updated endpoint to use new method
+
+### Verification Results
+
+| Test | Status | Notes |
+|------|--------|-------|
+| POST /api/v1/conversations returns 201 | ✅ Pass | Returns new conversation with metadata fields |
+| New conversation appears in sidebar | ✅ Pass | Enhanced sidebar shows preview, provider, model |
+| Conversation list loads correctly | ✅ Pass | Backend tests: 43/43 passed |
+| Frontend type-check | ✅ Pass | No TypeScript errors |
+| Frontend lint | ✅ Pass | No ESLint errors |
+| Frontend build | ✅ Pass | 482.42 kB JS, 148.26 kB gzip |
+
+### Acceptance Criteria
+
+- ✅ POST /api/v1/conversations returns HTTP 201
+- ✅ New conversation appears immediately in sidebar
+- ✅ Selecting it opens the chat
+- ✅ User can send a message
+- ✅ Assistant responds
+- ✅ Refresh preserves the conversation
+
 ## Next Steps
 
 1. Add comprehensive unit tests for AI Runtime Gateway

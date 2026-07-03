@@ -6,13 +6,14 @@ import ProviderForm from '../components/Providers/ProviderForm'
 import LoadingSpinner from '../components/common/LoadingSpinner'
 import ErrorMessage from '../components/common/ErrorMessage'
 import { showError, showSuccess } from '../utils/toast'
+import { ProviderType } from '../types/provider'
 
 function ProvidersPage() {
   const [showForm, setShowForm] = useState(false)
   const [editingProvider, setEditingProvider] = useState<{
     id: number
     name: string
-    type: string
+    type: ProviderType
     api_key?: string
     base_url?: string | null
     is_active?: boolean
@@ -28,6 +29,7 @@ function ProvidersPage() {
     queryKey: ['providers'],
     queryFn: providersApi.list,
   })
+  
 
   const testMutation = useMutation({
     mutationFn: providersApi.test,
@@ -98,7 +100,18 @@ function ProvidersPage() {
     },
   })
 
-  const handleSubmit = (data: Record<string, unknown>) => {
+  const handleSubmit = (data: {
+    name: string
+    type: ProviderType
+    api_key?: string
+    base_url?: string | null
+    is_active: boolean
+    default_model?: string
+    timeout: number
+    priority: number
+    max_retries: number
+    organization_id?: string
+  }) => {
     if (editingProvider) {
       updateMutation.mutate({ id: editingProvider.id, data })
     } else {

@@ -4,13 +4,24 @@ from enum import Enum
 
 
 class ProviderType(str, Enum):
-  """Provider type enumeration."""
-  OPENROUTER = "openrouter"
-  GROQ = "groq"
-  OLLAMA = "ollama"
-  GEMINI = "gemini"
-  LMSTUDIO = "lmstudio"
-  OPENAI_COMPATIBLE = "openai_compatible"
+    """Provider type enumeration."""
+    OPENAI_COMPATIBLE = "openai_compatible"
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    GEMINI = "gemini"
+    GROQ = "groq"
+    OPENROUTER = "openrouter"
+    OLLAMA = "ollama"
+    LMSTUDIO = "lmstudio"
+    NVIDIA_NIM = "nvidia_nim"
+    AZURE_OPENAI = "azure_openai"
+    MISTRAL = "mistral"
+    TOGETHER_AI = "together_ai"
+    DEEPSEEK = "deepseek"
+    COHERE = "cohere"
+    XAI = "xai"
+    PERPLEXITY = "perplexity"
+    CUSTOM = "custom"
 
 
 class HealthStatus(str, Enum):

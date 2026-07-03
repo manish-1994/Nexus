@@ -58,8 +58,7 @@ apiClient.interceptors.response.use(
     } else {
       showError('Network Error', { description: 'Unable to reach the backend.' })
     }
-
-    console.error('API Error:', error)
+    
     return Promise.reject(error)
   }
 )

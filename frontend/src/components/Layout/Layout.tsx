@@ -1,57 +1,75 @@
-import { useState } from 'react'
-import { ReactNode } from 'react'
-import TopBar from './TopBar'
-import Sidebar from './Sidebar'
-import StatusBar from './StatusBar'
+import { useState, ReactNode, Suspense, lazy } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import TopBar from './TopBar';
+import Sidebar from './Sidebar';
+import StatusBar from './StatusBar';
+import { ErrorBoundary } from '../common/ErrorBoundary';
+
+import { AmbientBackground } from '../Core/AmbientBackground';
+import { SpotlightSearch } from '../common/SpotlightSearch';
+
+const BackgroundScene = lazy(() => import('../Core/BackgroundScene'));
 
 interface LayoutProps {
-  children: ReactNode
+  children: ReactNode;
 }
 
 function Layout({ children }: LayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
+    <div className="h-screen w-screen bg-background overflow-hidden flex flex-col relative z-0">
+      {/* Global Spotlight Search */}
+      <SpotlightSearch />
+
+      {/* Ambient Background Layers (1 to 5) */}
+      <AmbientBackground />
+
+      {/* 3D Neural Particles Layer */}
+      <ErrorBoundary fallback={null}>
+        <Suspense fallback={null}>
+          <BackgroundScene />
+        </Suspense>
+      </ErrorBoundary>
+
+      
       {/* Top Bar */}
       <TopBar onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Mobile sidebar overlay */}
-        {sidebarOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
         {/* Sidebar */}
-        <aside
-          className={`
-            fixed lg:static inset-y-0 left-0 z-50
-            transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-            lg:translate-x-0 transition-transform duration-200 ease-in-out
-            w-64 bg-white border-r border-gray-200
-            pt-16 lg:pt-0
-          `}
-        >
-          <div className="h-full overflow-y-auto pt-4 lg:pt-0">
-            <Sidebar />
-          </div>
-        </aside>
+        <AnimatePresence initial={false}>
+          {sidebarOpen && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 280, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              className="flex-shrink-0 z-20 relative"
+            >
+              <Sidebar />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="p-6">
-            {children}
+        <main className="flex-1 flex flex-col relative z-10 m-4 ml-0">
+          <div className="glass-panel flex-1 rounded-2xl overflow-y-auto">
+            <div className="p-8 h-full">
+              {children}
+            </div>
           </div>
         </main>
       </div>
 
       {/* Status Bar */}
-      <StatusBar />
+      <div className="m-4 mt-0 z-20">
+        <div className="glass-panel rounded-xl">
+           <StatusBar />
+        </div>
+      </div>
     </div>
-  )
+  );
 }
 
-export default Layout
+export default Layout;

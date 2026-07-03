@@ -1,6 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
-import { healthApi } from '../../api/health'
-import type { HealthResponse } from '../../api/health'
+import { useQuery } from '@tanstack/react-query';
+import { healthApi } from '../../api/health';
+import type { HealthResponse } from '../../api/health';
+import { Activity, Database as DbIcon } from 'lucide-react';
+import { cn } from '../common/Motion';
 
 function StatusBar() {
   const { data: health } = useQuery<HealthResponse>({
@@ -8,73 +10,75 @@ function StatusBar() {
     queryFn: healthApi.check,
     retry: 1,
     refetchInterval: 60000,
-  })
+  });
 
   const getStatusColor = (status?: string) => {
-    if (!status) return 'text-gray-500'
+    if (!status) return 'bg-gray-500 shadow-none';
     switch (status.toLowerCase()) {
       case 'healthy':
       case 'connected':
-        return 'text-green-600'
+        return 'bg-success shadow-[0_0_8px_rgba(34,197,94,0.8)]';
       case 'degraded':
       case 'warning':
-        return 'text-yellow-600'
+        return 'bg-warning shadow-[0_0_8px_rgba(245,158,11,0.8)]';
       case 'error':
       case 'disconnected':
-        return 'text-red-600'
+        return 'bg-danger shadow-[0_0_8px_rgba(239,68,68,0.8)]';
       default:
-        return 'text-gray-500'
+        return 'bg-gray-500 shadow-none';
     }
-  }
+  };
 
   return (
-    <footer className="bg-white border-t border-gray-200 h-8 flex items-center justify-between px-4 text-xs">
+    <footer className="h-8 flex items-center justify-between px-4 text-[10px] font-medium tracking-wider text-text-muted bg-transparent">
       {/* Left section: Backend and Database status */}
-      <div className="flex items-center space-x-4">
-        <div className="flex items-center space-x-1.5">
-          <span className={`w-2 h-2 rounded-full ${health?.status === 'healthy' ? 'bg-green-500' : 'bg-gray-300'}`}></span>
-          <span className="text-gray-600">Backend:</span>
-          <span className={getStatusColor(health?.status)}>
-            {health?.status || 'Unknown'}
+      <div className="flex items-center space-x-6">
+        <div className="flex items-center space-x-2">
+          <span className={cn("w-1.5 h-1.5 rounded-full", getStatusColor(health?.status))}></span>
+          <span className="uppercase flex items-center gap-1">
+            <Activity className="w-3 h-3" />
+            CORE: <span className="text-white">{health?.status || 'UNKNOWN'}</span>
           </span>
         </div>
 
-        <div className="flex items-center space-x-1.5">
-          <span className={`w-2 h-2 rounded-full ${health?.database === 'connected' ? 'bg-green-500' : 'bg-gray-300'}`}></span>
-          <span className="text-gray-600">Database:</span>
-          <span className={getStatusColor(health?.database)}>
-            {health?.database || 'Unknown'}
+        <div className="flex items-center space-x-2">
+          <span className={cn("w-1.5 h-1.5 rounded-full", getStatusColor(health?.database))}></span>
+          <span className="uppercase flex items-center gap-1">
+            <DbIcon className="w-3 h-3" />
+            MEM: <span className="text-white">{health?.database || 'UNKNOWN'}</span>
           </span>
         </div>
       </div>
 
       {/* Center section: Current Provider and Model */}
-      <div className="hidden md:flex items-center space-x-4">
-        <div className="flex items-center space-x-1.5">
-          <span className="text-gray-600">Provider:</span>
-          <span className="text-gray-900 font-medium">OpenRouter</span>
+      <div className="hidden md:flex items-center space-x-6">
+        <div className="flex items-center space-x-2">
+          <span className="uppercase">PROVIDER:</span>
+          <span className="text-accent-light bg-accent/10 px-2 py-0.5 rounded text-[9px]">OPENROUTER</span>
         </div>
 
-        <div className="flex items-center space-x-1.5">
-          <span className="text-gray-600">Model:</span>
-          <span className="text-gray-900 font-medium">gpt-4</span>
+        <div className="flex items-center space-x-2">
+          <span className="uppercase">MODEL:</span>
+          <span className="text-white">CLAUDE 3 OPUS</span>
         </div>
       </div>
 
       {/* Right section: Version and Environment */}
-      <div className="flex items-center space-x-4">
-        <div className="hidden sm:flex items-center space-x-1.5">
-          <span className="text-gray-600">Version:</span>
-          <span className="text-gray-900 font-medium">{health?.version || '0.1.0'}</span>
+      <div className="flex items-center space-x-6">
+        <div className="hidden sm:flex items-center space-x-2">
+          <span className="uppercase">BUILD:</span>
+          <span className="text-white">{health?.version || '0.1.0'}</span>
         </div>
 
-        <div className="flex items-center space-x-1.5">
-          <span className="text-gray-600">Env:</span>
-          <span className="text-gray-900 font-medium">{health?.environment || 'development'}</span>
+        <div className="flex items-center space-x-2">
+          <span className="uppercase">ENV:</span>
+          <span className="text-white bg-surface border border-white/10 px-2 py-0.5 rounded text-[9px]">
+            {health?.environment || 'DEV'}
+          </span>
         </div>
       </div>
     </footer>
-  )
+  );
 }
 
-export default StatusBar
+export default StatusBar;

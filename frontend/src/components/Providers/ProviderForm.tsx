@@ -1,11 +1,13 @@
-import { useState } from 'react'
-import { ProviderType } from '../../types/provider'
+import { useState, useEffect } from 'react'
+import { ProviderType, Model } from '../../types/provider'
+import { providersApi } from '../../api/providers'
+import SearchableSelect from '../common/SearchableSelect'
 
 interface ProviderFormProps {
   onSubmit: (data: {
     name: string
-    type: string
-    api_key: string
+    type: ProviderType
+    api_key?: string
     base_url?: string | null
     is_active: boolean
     default_model?: string
@@ -17,8 +19,9 @@ interface ProviderFormProps {
   }) => void
   onCancel: () => void
   initialData?: {
+    id?: number
     name?: string
-    type?: string
+    type?: ProviderType
     api_key?: string
     base_url?: string | null
     is_active?: boolean
@@ -31,6 +34,17 @@ interface ProviderFormProps {
   }
 }
 
+// Provider types that don't require API key
+const LOCAL_TYPES: ProviderType[] = ['ollama', 'lmstudio']
+
+// Provider types that typically need base_url
+const CUSTOM_URL_TYPES: ProviderType[] = [
+  'openai_compatible',
+  'ollama',
+  'lmstudio',
+  'custom',
+]
+
 function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
   const [name, setName] = useState(initialData?.name || '')
   const [type, setType] = useState<ProviderType>((initialData?.type || 'openrouter') as ProviderType)
@@ -42,13 +56,108 @@ function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
   const [priority, setPriority] = useState(initialData?.priority ?? 0)
   const [maxRetries, setMaxRetries] = useState(initialData?.max_retries ?? 3)
   const [orgId, setOrgId] = useState(initialData?.organization_id || '')
+  const [errors, setErrors] = useState<Record<string, string>>({})
+  const [serverErrors, setServerErrors] = useState<string[]>([])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [models, setModels] = useState<Model[]>([])
+  const [modelsLoading, setModelsLoading] = useState(false)
+  const [discoveryError, setDiscoveryError] = useState<string | null>(null)
+  const [discoveredAt, setDiscoveredAt] = useState<string | null>(null)
+
+  const requiresApiKey = !LOCAL_TYPES.includes(type)
+  const showsBaseUrl = CUSTOM_URL_TYPES.includes(type)
+
+  const canDiscoverModels = showsBaseUrl && baseUrl && (requiresApiKey ? apiKey : true)
+
+  useEffect(() => {
+    const fetchModels = async () => {
+      if (!initialData?.id) return
+      try {
+        setModelsLoading(true)
+        setDiscoveryError(null)
+        const data = await providersApi.listModels(initialData.id)
+        setModels(data)
+        if (data.length > 0) {
+          setDiscoveredAt(new Date().toISOString())
+        }
+      } catch {
+        setDiscoveryError('Failed to load existing models')
+      } finally {
+        setModelsLoading(false)
+      }
+    }
+    fetchModels()
+  }, [initialData?.id, type, baseUrl])
+
+  const handleDiscoverModels = async () => {
+    if (!initialData?.id) return
+    try {
+      setModelsLoading(true)
+      setDiscoveryError(null)
+      const data = await providersApi.discoverModels(initialData.id)
+      setModels(data)
+      setDiscoveredAt(new Date().toISOString())
+      if (data.length === 0) {
+        setDiscoveryError('No models found. Check your Base URL and API key.')
+      }
+    } catch {
+      setDiscoveryError('Model discovery failed. Please check your configuration and try again.')
+    } finally {
+      setModelsLoading(false)
+    }
+  }
+
+  const validate = async (): Promise<boolean> => {
+    const newErrors: Record<string, string> = {}
+    const newServerErrors: string[] = []
+
+    if (!name.trim()) {
+      newErrors.name = 'Provider name is required'
+    } else if (name.length > 255) {
+      newErrors.name = 'Name must be 255 characters or less'
+    }
+
+    if (showsBaseUrl && baseUrl) {
+      const urlPattern = /^https?:\/\/.+/i
+      if (!urlPattern.test(baseUrl)) {
+        newErrors.base_url = 'URL must start with http:// or https://'
+      }
+    }
+
+    if (requiresApiKey && !apiKey.trim()) {
+      newErrors.api_key = 'API key is required for this provider type'
+    }
+
+    setErrors(newErrors)
+
+    if (Object.keys(newErrors).length === 0) {
+      try {
+        const result = await providersApi.validate({
+          name: name.trim(),
+          type,
+          base_url: baseUrl || undefined,
+          api_key: apiKey || undefined,
+        })
+        if (!result.valid) {
+          newServerErrors.push(...result.errors)
+        }
+      } catch {
+        newServerErrors.push('Validation service unavailable')
+      }
+    }
+
+    setServerErrors(newServerErrors)
+    return Object.keys(newErrors).length === 0 && newServerErrors.length === 0
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!validate()) return
+
     onSubmit({
-      name,
+      name: name.trim(),
       type,
-      api_key: apiKey,
+      api_key: apiKey || undefined,
       base_url: baseUrl || null,
       is_active: isActive,
       default_model: defaultModel || undefined,
@@ -61,55 +170,154 @@ function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 bg-white rounded-lg shadow p-6">
+      {/* Name */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Provider Name <span className="text-red-500">*</span>
+        </label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-          required
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+            errors.name ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="My Provider"
         />
+        {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
       </div>
 
+      {/* Type */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Provider Type <span className="text-red-500">*</span>
+        </label>
         <select
           value={type}
           onChange={(e) => setType(e.target.value as ProviderType)}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
         >
-          <option value="openrouter">OpenRouter</option>
-          <option value="groq">Groq</option>
-          <option value="ollama">Ollama</option>
+          <option value="openai_compatible">OpenAI Compatible</option>
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic</option>
           <option value="gemini">Gemini</option>
+          <option value="groq">Groq</option>
+          <option value="openrouter">OpenRouter</option>
+          <option value="ollama">Ollama</option>
           <option value="lmstudio">LM Studio</option>
+          <option value="nvidia_nim">NVIDIA NIM</option>
+          <option value="azure_openai">Azure OpenAI</option>
+          <option value="mistral">Mistral</option>
+          <option value="together_ai">Together AI</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="cohere">Cohere</option>
+          <option value="xai">xAI</option>
+          <option value="perplexity">Perplexity</option>
+          <option value="custom">Custom</option>
         </select>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">API Key</label>
-        <input
-          type="password"
-          value={apiKey}
-          onChange={(e) => setApiKey(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-          placeholder="Enter API key"
-        />
-      </div>
+      {/* API Key */}
+      {requiresApiKey && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            API Key <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+              errors.api_key ? 'border-red-500' : 'border-gray-300'
+            }`}
+            placeholder="sk-..."
+          />
+          {errors.api_key && <p className="text-red-500 text-xs mt-1">{errors.api_key}</p>}
+        </div>
+      )}
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Base URL (Optional)</label>
-        <input
-          type="text"
-          value={baseUrl}
-          onChange={(e) => setBaseUrl(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-          placeholder="https://api.example.com"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
+      {/* Base URL */}
+      {showsBaseUrl && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Base URL {type === 'openai_compatible' && <span className="text-red-500">*</span>}
+          </label>
+          <input
+            type="text"
+            value={baseUrl}
+            onChange={(e) => setBaseUrl(e.target.value)}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+              errors.base_url ? 'border-red-500' : 'border-gray-300'
+            }`}
+            placeholder="http://localhost:11434 or https://api.example.com"
+          />
+          {errors.base_url && <p className="text-red-500 text-xs mt-1">{errors.base_url}</p>}
+          {type === 'openai_compatible' && (
+            <p className="text-gray-500 text-xs mt-1">
+              Models will be auto-discovered from /models endpoint
+            </p>
+          )}
+        </div>
+      )}
+      
+      {/* Model Discovery */}
+      {showsBaseUrl && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700">Models</label>
+            {initialData?.id && (
+              <button
+                type="button"
+                onClick={handleDiscoverModels}
+                disabled={!canDiscoverModels || modelsLoading}
+                className="text-sm px-3 py-1 bg-primary-500 text-white rounded hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {modelsLoading ? 'Discovering...' : discoveredAt ? 'Refresh Models' : 'Discover Models'}
+              </button>
+            )}
+          </div>
+      
+          {discoveryError && (
+            <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+              <p className="text-sm text-yellow-700">{discoveryError}</p>
+            </div>
+          )}
+      
+          {discoveredAt && !discoveryError && (
+            <p className="text-xs text-gray-500">
+              Last discovered: {new Date(discoveredAt).toLocaleString()}
+            </p>
+          )}
+      
+          {models.length > 0 && (
+            <div className="text-sm text-gray-600">
+              {models.length} model{models.length !== 1 ? 's' : ''} discovered
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Default Model */}
+      {showsBaseUrl ? (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Default Model</label>
+          <SearchableSelect
+            options={models.map((model) => ({
+              value: model.name,
+              label: model.display_name || model.name,
+            }))}
+            value={defaultModel}
+            onChange={setDefaultModel}
+            placeholder={modelsLoading ? 'Discovering models...' : 'Select a model...'}
+            disabled={modelsLoading}
+          />
+          {models.length === 0 && !modelsLoading && (
+            <p className="text-gray-500 text-xs mt-1">
+              Click Discover Models to load available models
+            </p>
+          )}
+        </div>
+      ) : (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Default Model</label>
           <input
@@ -120,7 +328,10 @@ function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
             placeholder="gpt-4o"
           />
         </div>
+      )}
 
+      {/* Timeout & Priority */}
+      <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Timeout (s)</label>
           <input
@@ -131,9 +342,6 @@ function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
             min={1}
           />
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
           <input
@@ -143,7 +351,10 @@ function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
           />
         </div>
+      </div>
 
+      {/* Max Retries & Org ID */}
+      <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Max Retries</label>
           <input
@@ -155,19 +366,19 @@ function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
             max={10}
           />
         </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Organization ID</label>
+          <input
+            type="text"
+            value={orgId}
+            onChange={(e) => setOrgId(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            placeholder="org-..."
+          />
+        </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Organization ID (Optional)</label>
-        <input
-          type="text"
-          value={orgId}
-          onChange={(e) => setOrgId(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
-          placeholder="org-..."
-        />
-      </div>
-
+      {/* Active Checkbox */}
       <div className="flex items-center">
         <input
           type="checkbox"
@@ -176,9 +387,21 @@ function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
           onChange={(e) => setIsActive(e.target.checked)}
           className="mr-2"
         />
-        <label htmlFor="is_active" className="text-sm text-gray-700">Active</label>
+        <label htmlFor="is_active" className="text-sm text-gray-700">
+          Active
+        </label>
       </div>
 
+      {/* Server Errors */}
+      {serverErrors.length > 0 && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+          {serverErrors.map((error, index) => (
+            <p key={index} className="text-sm text-red-600">{error}</p>
+          ))}
+        </div>
+      )}
+
+      {/* Actions */}
       <div className="flex gap-2">
         <button
           type="submit"

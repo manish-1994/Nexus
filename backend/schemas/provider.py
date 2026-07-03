@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, field_serializer
+from pydantic import BaseModel, ConfigDict, field_serializer, field_validator
 from datetime import datetime
 from schemas.base import BaseSchema
 from typing import Optional, List, Dict, Any
@@ -14,11 +14,37 @@ class ProviderBase(BaseSchema):
     max_retries: int = 3
     organization_id: Optional[str] = None
 
+    @field_validator('name')
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError('Provider name cannot be empty')
+        if len(v) > 255:
+            raise ValueError('Provider name must be 255 characters or less')
+        return v
+
+    @field_validator('base_url')
+    @classmethod
+    def validate_base_url(cls, v: Optional[str]) -> Optional[str]:
+        if v and not v.strip():
+            return None
+        return v
+
 class ProviderCreate(ProviderBase):
     api_key: Optional[str] = None
     custom_headers: Optional[Dict[str, str]] = None
 
-class ProviderUpdate(ProviderBase):
+class ProviderUpdate(BaseSchema):
+    name: Optional[str] = None
+    type: Optional[str] = None
+    base_url: Optional[str] = None
+    is_active: Optional[bool] = None
+    default_model: Optional[str] = None
+    timeout: Optional[int] = None
+    priority: Optional[int] = None
+    max_retries: Optional[int] = None
+    organization_id: Optional[str] = None
     api_key: Optional[str] = None
     custom_headers: Optional[Dict[str, str]] = None
 

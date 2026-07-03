@@ -5,38 +5,44 @@ import { showError } from '../utils/toast'
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
 
 export const chatApi = {
-  async getConversations(): Promise<Conversation[]> {
-    const response = await apiClient.get('/conversations')
-    return response.data
-  },
+    async getConversations(): Promise<Conversation[]> {
+        const response = await apiClient.get('/conversations')
+        return response.data
+    },
 
-  async createConversation(data: { title?: string }): Promise<Conversation> {
-    const response = await apiClient.post('/conversations', data)
-    return response.data
-  },
+    async createConversation(data: { title?: string }): Promise<Conversation> {
+        const response = await apiClient.post('/conversations', data)
+        return response.data
+    },
 
-  async getConversation(id: number): Promise<Conversation> {
-    const response = await apiClient.get(`/conversations/${id}`)
-    return response.data
-  },
+    async getConversation(id: number): Promise<Conversation> {
+        const response = await apiClient.get(`/conversations/${id}`)
+        return response.data
+    },
 
-  async updateConversation(id: number, data: { title?: string }): Promise<Conversation> {
-    const response = await apiClient.put(`/conversations/${id}`, data)
-    return response.data
-  },
+    async updateConversation(id: number, data: { title?: string }): Promise<Conversation> {
+        const response = await apiClient.put(`/conversations/${id}`, data)
+        return response.data
+    },
 
-  async deleteConversation(id: number): Promise<void> {
-    await apiClient.delete(`/conversations/${id}`)
-  },
+    async deleteConversation(id: number): Promise<void> {
+        await apiClient.delete(`/conversations/${id}`)
+    },
 
-  async getMessages(conversationId: number): Promise<Message[]> {
-    const response = await apiClient.get(`/conversations/${conversationId}/messages`)
-    return response.data
-  },
+    async getMessages(conversationId: number): Promise<Message[]> {
+        const response = await apiClient.get(`/conversations/${conversationId}/messages`)
+        return response.data
+    },
+
+    async searchConversations(query: string): Promise<Conversation[]> {
+        const response = await apiClient.get('/conversations/search', { params: { q: query } })
+        return response.data
+    },
 
   async sendMessage(
     data: ChatRequest,
-    onChunk?: (chunk: string) => void
+    onChunk?: (chunk: string) => void,
+    signal?: AbortSignal
   ): Promise<void> {
     try {
       const response = await fetch(`${API_URL}/api/v1/chat`, {
@@ -45,6 +51,7 @@ export const chatApi = {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(data),
+        signal,
       })
 
       if (!response.ok) {

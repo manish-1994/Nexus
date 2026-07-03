@@ -108,7 +108,7 @@ class ChatService:
             # Non-streaming via AI Runtime
             from services.ai_runtime import AIRuntime
             runtime = AIRuntime(self.db)
-            response = runtime.chat(messages=messages, provider_id=provider_id, model=model)
+            response = await runtime.chat(messages=messages, provider_id=provider_id, model=model)
             assistant_message = self._save_assistant_message(conversation_id, response, provider=provider.type, model=model)
             return {
                 "stream": False,

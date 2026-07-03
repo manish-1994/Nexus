@@ -3,10 +3,45 @@
 @tailwind utilities;
 
 @layer base {
-  * {
-    @apply border-gray-200;
+  html {
+    @apply scroll-smooth;
   }
+  
   body {
-    @apply bg-gray-100 text-gray-900;
+    @apply bg-background text-text font-sans antialiased overflow-hidden;
+    /* We use overflow-hidden because the OS desktop environment handles scrolling */
+  }
+
+  * {
+    @apply border-surface;
   }
 }
+
+@layer components {
+  .glass-panel {
+    @apply bg-surface/50 backdrop-blur-md border border-white/10 shadow-glass;
+  }
+  
+  .glass-elevated {
+    @apply bg-elevated/60 backdrop-blur-lg border border-white/20 shadow-glass;
+  }
+}
+
+/* Scrollbar hiding for minimal OS look, while keeping functionality */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-surface rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-elevated;
+}
+

@@ -1,202 +1,173 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { providersApi } from '../../api/providers'
+import { agentApi } from '../../services/agentApi'
 import { useProviderStore } from '../../stores/providerStore'
 import { useModelStore } from '../../stores/modelStore'
+import { useAgentStore } from '../../stores/agentStore'
 import { toast } from 'sonner'
+import { ProviderSelector } from './ProviderSelector'
+import { ModelSelector } from './ModelSelector'
+import { AgentSelector } from './AgentSelector'
+import type { Provider } from '../../types/provider'
 
 function ProviderModelSelector() {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [isOpen, setIsOpen] = useState(false)
-  const queryClient = useQueryClient()
-  const { providers, selectedProviderId, selectProvider } = useProviderStore()
-  const { models, selectedModel, selectModel, fetchModelsForProvider } = useModelStore()
+    const queryClient = useQueryClient()
+    const { providers, selectedProviderId, selectProvider } = useProviderStore()
+    const { selectedModelId, selectModel } = useModelStore()
+    const { selectedAgentId, selectAgent } = useAgentStore()
 
-  const { data: providersData, isLoading: providersLoading } = useQuery({
-    queryKey: ['providers'],
-    queryFn: providersApi.list,
-  })
+    const { data: providersData, isLoading: providersLoading } = useQuery({
+        queryKey: ['providers'],
+        queryFn: providersApi.list,
+    })
 
-  const { data: modelsData, isLoading: modelsLoading } = useQuery({
-    queryKey: ['models', selectedProviderId],
-    queryFn: () => providersApi.listModels(selectedProviderId!),
-    enabled: !!selectedProviderId,
-  })
+    const { data: agentsData, isLoading: agentsLoading } = useQuery({
+        queryKey: ['agents'],
+        queryFn: agentApi.getAgents,
+    })
 
-  useEffect(() => {
-    if (providersData) {
-      useProviderStore.setState({ providers: providersData })
-      if (providersData.length > 0 && !selectedProviderId) {
-        selectProvider(providersData[0].id)
-      }
+    const agents = useMemo(() => agentsData || [], [agentsData])
+
+    const modelsData = useMemo(() => {
+        const match = providersData?.find(p => p.id === selectedProviderId)
+        return match?.models || []
+    }, [providersData, selectedProviderId])
+
+    const selectedModel = useMemo(() => {
+        if (!selectedProviderId || !selectedModelId) return null
+        return modelsData.find(m => m.id === selectedModelId) || null
+    }, [modelsData, selectedProviderId, selectedModelId])
+
+    useEffect(() => {
+        if (providersData) {
+            const activeProviders = providersData.filter(p => p.is_active)
+            useProviderStore.setState({ providers: activeProviders })
+            if (activeProviders.length > 0 && !selectedProviderId && !selectedAgentId) {
+                selectProvider(activeProviders[0].id)
+            }
+        }
+    }, [providersData, selectProvider, selectedProviderId, selectedAgentId])
+
+    const handleAgentChange = useCallback((agentId: number | null) => {
+        const agent = agents.find(a => a.id === agentId)
+        selectAgent(agentId)
+
+        if (!agentId || !agent?.provider_id) {
+            useProviderStore.setState({ selectedProviderId: null })
+            useModelStore.setState({ selectedModelId: null })
+            return
+        }
+
+        const provider = providersData?.find(p => p.id === agent.provider_id)
+        if (!provider) {
+            toast.error('Agent provider not found')
+            return
+        }
+
+        selectProvider(agent.provider_id)
+
+        const derivedModels = provider.models
+        if (agent.preferred_model_id) {
+            const foundModel = derivedModels.find(m => m.id === agent.preferred_model_id)
+            if (foundModel) {
+                selectModel(foundModel.id)
+            } else {
+                useModelStore.setState({ selectedModelId: null })
+                toast.error("This agent's configured model is unavailable for the selected provider.")
+            }
+        } else if (derivedModels.length > 0) {
+            selectModel(derivedModels[0].id)
+        } else {
+            useModelStore.setState({ selectedModelId: null })
+        }
+    }, [selectAgent, agents, selectProvider, providersData, selectModel])
+
+    const handleProviderChange = useCallback((providerId: number) => {
+        selectProvider(providerId)
+
+        const freshData = queryClient.getQueryData<Provider[]>(['providers']) || providersData
+        const match = freshData?.find(p => p.id === providerId)
+        const derivedModels = match?.models || []
+
+        useModelStore.setState({ selectedModelId: null })
+
+        if (derivedModels.length > 0) {
+            selectModel(derivedModels[0].id)
+        }
+    }, [selectProvider, selectModel, queryClient, providersData])
+
+    const handleDiscoverModels = async () => {
+        if (!selectedProviderId) return
+        try {
+            await useProviderStore.getState().discoverModels(selectedProviderId)
+            await queryClient.invalidateQueries({ queryKey: ['providers'] })
+            const freshProviders = await providersApi.list()
+            const freshModels = freshProviders.find(p => p.id === selectedProviderId)?.models || []
+            if (freshModels.length > 0) {
+                useModelStore.getState().selectModel(freshModels[0].id)
+                toast.success(`Synced ${freshModels.length} models`)
+            } else {
+                useModelStore.setState({ selectedModelId: null })
+                toast.info('No models found for this provider')
+            }
+        } catch {
+            toast.error('Failed to discover models')
+        }
     }
-  }, [providersData, selectProvider, selectedProviderId])
 
-  useEffect(() => {
-    if (modelsData) {
-      useModelStore.setState({ models: modelsData })
-      if (modelsData.length > 0 && !selectedModel) {
-        selectModel(modelsData[0])
-      }
-    }
-  }, [modelsData, selectModel, selectedModel])
+    const handleModelChange = useCallback((modelId: number) => {
+      selectModel(modelId)
+    }, [selectModel])
 
-  const handleProviderChange = useCallback(async (providerId: number) => {
-    selectProvider(providerId)
-    useModelStore.setState({ models: [], selectedModel: null })
-    await fetchModelsForProvider(providerId)
-  }, [selectProvider, fetchModelsForProvider])
+    const selectedAgent = agents.find(a => a.id === selectedAgentId)
 
-  const handleDiscoverModels = async () => {
-    if (!selectedProviderId) return
-    try {
-      await useProviderStore.getState().discoverModels(selectedProviderId)
-      await queryClient.invalidateQueries({ queryKey: ['providers'] })
-      await queryClient.invalidateQueries({ queryKey: ['models', selectedProviderId] })
-      const freshModels = await providersApi.listModels(selectedProviderId)
-      useModelStore.setState({ models: freshModels })
-      if (freshModels.length > 0) {
-        useModelStore.getState().selectModel(freshModels[0])
-        toast.success(`Synced ${freshModels.length} models`)
-      } else {
-        toast.info('No models found for this provider')
-      }
-    } catch {
-      toast.error('Failed to discover models')
-    }
-  }
+    const isProviderOverridden = selectedAgent && selectedAgent.provider_id !== undefined && selectedProviderId !== selectedAgent.provider_id
+    const isModelOverridden = selectedAgent && selectedAgent.preferred_model_id !== undefined && selectedModelId !== selectedAgent.preferred_model_id
 
-  const selectedProvider = providers.find(p => p.id === selectedProviderId)
-  const filteredModels = models.filter(model =>
-    model.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (model.display_name && model.display_name.toLowerCase().includes(searchQuery.toLowerCase()))
-  )
-
-  const canSend = !!selectedProviderId && !!selectedModel
-
-  return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-700">Provider & Model</h3>
-        <button
-          onClick={handleDiscoverModels}
-          disabled={!selectedProviderId || providersLoading}
-          className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed"
-        >
-          {providersLoading ? 'Syncing...' : 'Sync Models'}
-        </button>
-      </div>
-
-      {/* Provider Selector */}
-      <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">Provider</label>
-        <select
-          value={selectedProviderId || ''}
-          onChange={(e) => handleProviderChange(Number(e.target.value))}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {providers.map((provider) => (
-            <option key={provider.id} value={provider.id}>
-              {provider.name} ({provider.type})
-            </option>
-          ))}
-        </select>
-        {selectedProvider && (
-          <div className="mt-1 flex items-center gap-2">
-            <span className={`w-2 h-2 rounded-full ${
-              selectedProvider.health_status === 'active' ? 'bg-green-500' :
-              selectedProvider.health_status === 'error' ? 'bg-red-500' :
-              selectedProvider.health_status === 'checking' ? 'bg-yellow-500' :
-              'bg-gray-500'
-            }`} />
-            <span className="text-xs text-gray-500 capitalize">{selectedProvider.health_status}</span>
-            <span className="text-xs text-gray-400">• {models.length} models</span>
-          </div>
-        )}
-      </div>
-
-      {/* Model Selector */}
-      <div>
-        <label className="block text-xs font-medium text-gray-600 mb-1">Model</label>
-        {modelsLoading ? (
-          <div className="space-y-2">
-            <div className="h-9 bg-gray-100 rounded-lg animate-pulse" />
-            <div className="h-4 w-24 bg-gray-100 rounded animate-pulse" />
-          </div>
-        ) : filteredModels.length === 0 ? (
-          <div className="text-sm text-gray-500 py-2">
-            {selectedProviderId ? 'No models found. Click "Sync Models" to discover.' : 'Select a provider first.'}
-          </div>
-        ) : (
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search models..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setIsOpen(true)}
-              onBlur={() => setTimeout(() => setIsOpen(false), 150)}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+    const canSend = !!selectedProviderId && !!selectedModel
+    return (
+        <div className="bg-surface/30 border border-white/5 backdrop-blur-md rounded-2xl p-5 space-y-4 shadow-glass">
+            <AgentSelector
+                agents={agents}
+                selectedAgentId={selectedAgentId}
+                onAgentChange={handleAgentChange}
+                isLoading={agentsLoading}
             />
-            {isOpen && searchQuery && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {filteredModels.map((model) => (
-                  <div
-                    key={model.id}
-                    onClick={() => {
-                      selectModel(model)
-                      setIsOpen(false)
-                      setSearchQuery('')
-                    }}
-                    className={`px-3 py-2 cursor-pointer hover:bg-blue-50 ${
-                      selectedModel?.id === model.id ? 'bg-blue-100' : ''
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-sm font-medium">{model.display_name || model.name}</div>
-                        <div className="text-xs text-gray-500">{model.name}</div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {model.supports_streaming !== false && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            Streaming
-                          </span>
-                        )}
-                        {model.max_tokens && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-50 text-gray-600 border border-gray-200">
-                            {model.max_tokens}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-        {selectedModel && !modelsLoading && (
-          <div className="mt-1 flex items-center gap-2 text-xs text-gray-600">
-            <span className="font-medium">{selectedModel.display_name || selectedModel.name}</span>
-            {selectedModel.supports_streaming !== false && (
-              <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                Streaming
-              </span>
-            )}
-            {selectedModel.max_tokens && (
-              <span className="px-1.5 py-0.5 rounded bg-gray-50 text-gray-600 border border-gray-200">
-                {selectedModel.max_tokens} ctx
-              </span>
-            )}
-          </div>
-        )}
-      </div>
 
-      {/* Hidden prop for parent to check send readiness */}
-      <input type="hidden" data-can-send={canSend ? '1' : '0'} />
-    </div>
-  )
+            <div className="pt-2 border-t border-gray-100 flex flex-col space-y-4">
+                <div className="relative">
+                    {isProviderOverridden && (
+                        <span className="absolute -top-2 right-0 bg-yellow-100 text-yellow-800 text-[10px] px-1.5 py-0.5 rounded font-medium z-10">
+                            Overridden
+                        </span>
+                    )}
+                    <ProviderSelector
+                        providers={providers}
+                        selectedProviderId={selectedProviderId}
+                        onProviderChange={handleProviderChange}
+                        onDiscoverModels={handleDiscoverModels}
+                        isLoading={providersLoading}
+                    />
+                </div>
+
+                <div className="relative">
+                    {isModelOverridden && (
+                        <span className="absolute -top-2 right-0 bg-yellow-100 text-yellow-800 text-[10px] px-1.5 py-0.5 rounded font-medium z-10">
+                            Overridden
+                        </span>
+                    )}
+                    <ModelSelector
+                      models={modelsData}
+                      selectedModelId={selectedModelId}
+                      onModelSelect={handleModelChange}
+                      isLoading={providersLoading}
+                    />
+                </div>
+            </div>
+            <input type="hidden" data-can-send={canSend ? '1' : '0'} />
+        </div>
+    )
 }
 
 export default ProviderModelSelector

@@ -18,7 +18,7 @@ def get_ai_runtime(db: Session = Depends(get_db)) -> AIRuntime:
 async def ai_chat(request: AIRequest, runtime: AIRuntime = Depends(get_ai_runtime)):
     """Unified chat endpoint for all modules."""
     try:
-        content = runtime.chat(
+        content = await runtime.chat(
             messages=request.messages,
             provider_id=request.provider_id,
             model=request.model,

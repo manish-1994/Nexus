@@ -6,6 +6,7 @@ from .model import Model
 from .settings import Settings
 from .capability import Capability
 from .usage import Usage
+from .agent import Agent
 
 __all__ = [
     "Base",
@@ -16,4 +17,5 @@ __all__ = [
     "Settings",
     "Capability",
     "Usage",
+    "Agent",
 ]

@@ -61,6 +61,8 @@ setup:
 
 # Development
 run-backend:
+	@echo "Checking if backend is already running on port 8000..."
+	@powershell -Command "$$pid = (Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object -First 1).OwningProcess; if ($$pid) { Write-Host 'Port 8000 is already occupied by PID:' $$pid; Write-Host 'Attempting health check...'; try { $$response = Invoke-WebRequest -Uri 'http://localhost:8000/api/v1/health/health' -TimeoutSec 3 -UseBasicParsing -ErrorAction Stop; if ($$response.StatusCode -eq 200) { Write-Host 'Existing backend is healthy — REUSING. Skipping startup.'; exit 0 } else { Write-Host 'Unhealthy response — will restart.' } } catch { Write-Host 'Health check failed — stale process detected.' }; Write-Host 'Killing stale process...'; Stop-Process -Id $$pid -Force -ErrorAction SilentlyContinue; Start-Sleep -Seconds 2; $$still = (Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object -First 1).OwningProcess; if ($$still) { Write-Host 'WARNING: Port 8000 still occupied by PID:' $$still; exit 1 } else { Write-Host 'Port 8000 released.' } } else { Write-Host 'Port 8000 is free.' }"
 	@echo "Starting backend server..."
 	cd backend && .venv\Scripts\activate && uvicorn app:app --reload --port 8000 --host 0.0.0.0
 

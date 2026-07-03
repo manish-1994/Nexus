@@ -21,9 +21,13 @@ class AIRuntime:
         self.usage_tracker = UsageTracker(db)
         self.model_cache = ModelCache()
 
-    def chat(self, messages: list, provider_id: Optional[int] = None, model: Optional[str] = None, **kwargs) -> str:
+    async def chat(self, messages: list, provider_id: Optional[int] = None, model: Optional[str] = None, **kwargs) -> str:
         """Send chat request through runtime."""
+        logger.info("[DEBUG] AIRuntime.chat called provider_id=%s model=%s messages_count=%d kwargs=%s", provider_id, model, len(messages), kwargs)
         provider = self._resolve_provider(provider_id, model, kwargs)
+        logger.info("[DEBUG] Final Provider: id=%s name=%s type=%s", provider.id, provider.name, provider.type)
+        logger.info("[DEBUG] Final Model: %s", model)
+        logger.info("[DEBUG] Final Payload: messages_count=%d provider_id=%s model=%s kwargs=%s", len(messages), provider_id, model, kwargs)
         provider_class = ProviderRegistry.get(provider.type)
         if not provider_class:
             raise ValueError(f"Provider type {provider.type} not supported")
@@ -39,7 +43,7 @@ class AIRuntime:
         if not resolved_model:
             raise ValueError("No model specified and provider has no default model")
         try:
-            response = instance.chat(messages=messages, model=resolved_model, **kwargs)
+            response = await instance.chat(messages=messages, model=resolved_model, **kwargs)
             self.usage_tracker.track_usage(
                 provider_id=provider.id,
                 model=resolved_model,
@@ -52,7 +56,11 @@ class AIRuntime:
 
     async def stream(self, messages: list, provider_id: Optional[int] = None, model: Optional[str] = None, conversation_id: Optional[int] = None, **kwargs) -> AsyncGenerator[str, None]:
         """Stream chat request through runtime."""
+        logger.info("[DEBUG] AIRuntime.stream called provider_id=%s model=%s messages_count=%d conversation_id=%s kwargs=%s", provider_id, model, len(messages), conversation_id, kwargs)
         provider = self._resolve_provider(provider_id, model, kwargs)
+        logger.info("[DEBUG] Final Provider: id=%s name=%s type=%s", provider.id, provider.name, provider.type)
+        logger.info("[DEBUG] Final Model: %s", model)
+        logger.info("[DEBUG] Final Payload: messages_count=%d provider_id=%s model=%s conversation_id=%s kwargs=%s", len(messages), provider_id, model, conversation_id, kwargs)
         provider_class = ProviderRegistry.get(provider.type)
         if not provider_class:
             raise ValueError(f"Provider type {provider.type} not supported")
@@ -93,12 +101,15 @@ class AIRuntime:
 
     def _resolve_provider(self, provider_id: Optional[int], model: Optional[str], kwargs: Dict[str, Any]) -> Provider:
         """Select provider based on requirements."""
+        logger.info("[DEBUG] _resolve_provider called provider_id=%s model=%s", provider_id, model)
         if provider_id:
             provider = self.db.query(Provider).filter(Provider.id == provider_id).first()
+            logger.info("[DEBUG] _resolve_provider DB lookup provider_id=%s found=%s", provider_id, bool(provider))
             if not provider:
                 raise ValueError(f"Provider {provider_id} not found")
             if not provider.is_active:
                 raise ValueError(f"Provider {provider_id} is not active")
+            logger.info("[DEBUG] _resolve_provider returning provider id=%s type=%s", provider.id, provider.type)
             return provider
         # Fallback to first active provider
         provider = self.db.query(Provider).filter(Provider.is_active == True).order_by(Provider.priority.desc()).first()

@@ -10,6 +10,7 @@ import WorkflowsPage from './pages/WorkflowsPage'
 import WorkspacePage from './pages/WorkspacePage'
 import ToolsPage from './pages/ToolsPage'
 import SettingsPage from './pages/SettingsPage'
+import AgentsPage from './pages/AgentsPage'
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/chat" element={<ChatPage />} />
+          <Route path="/agents" element={<AgentsPage />} />
           <Route path="/providers" element={<ProvidersPage />} />
           <Route path="/memory" element={<MemoryPage />} />
           <Route path="/planner" element={<PlannerPage />} />

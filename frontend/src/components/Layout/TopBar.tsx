@@ -1,30 +1,33 @@
-import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Menu, Search, Bell, User, Cpu } from 'lucide-react';
+import { cn } from '../common/Motion';
 
 interface TopBarProps {
-  onMenuToggle: () => void
+  onMenuToggle: () => void;
 }
 
 function TopBar({ onMenuToggle }: TopBarProps) {
-  const location = useLocation()
-  const [searchFocused, setSearchFocused] = useState(false)
+  const location = useLocation();
+  const [searchFocused, setSearchFocused] = useState(false);
 
   const getBreadcrumbs = () => {
-    const path = location.pathname
-    if (path === '/') return ['Dashboard']
-    if (path === '/chat') return ['Chat']
-    if (path === '/providers') return ['Providers']
-    if (path === '/memory') return ['Memory']
-    if (path === '/planner') return ['Planner']
-    if (path === '/workflows') return ['Workflows']
-    if (path === '/workspace') return ['Workspace']
-    if (path === '/tools') return ['Tools']
-    if (path === '/settings') return ['Settings']
-    return ['Home']
-  }
+    const path = location.pathname;
+    if (path === '/') return ['Dashboard'];
+    if (path === '/chat') return ['Chat'];
+    if (path === '/providers') return ['Providers'];
+    if (path === '/memory') return ['Memory'];
+    if (path === '/planner') return ['Planner'];
+    if (path === '/workflows') return ['Workflows'];
+    if (path === '/workspace') return ['Workspace'];
+    if (path === '/tools') return ['Tools'];
+    if (path === '/settings') return ['Settings'];
+    return ['Home'];
+  };
 
   const getCurrentModule = () => {
-    const path = location.pathname
+    const path = location.pathname;
     const moduleMap: Record<string, string> = {
       '/': 'Dashboard',
       '/chat': 'Chat',
@@ -35,117 +38,96 @@ function TopBar({ onMenuToggle }: TopBarProps) {
       '/workspace': 'Workspace',
       '/tools': 'Tools',
       '/settings': 'Settings',
-    }
-    return moduleMap[path] || 'NEXUS V3'
-  }
+    };
+    return moduleMap[path] || 'NEXUS';
+  };
 
   return (
-    <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 sticky top-0 z-50">
+    <header className="h-16 flex items-center justify-between px-6 mx-4 mt-4 glass-panel rounded-2xl z-50 sticky top-4">
       {/* Left section: Menu toggle + Breadcrumbs */}
       <div className="flex items-center space-x-4">
-        <button
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
           onClick={onMenuToggle}
-          className="lg:hidden p-2 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="p-2 rounded-xl text-text-muted hover:text-white hover:bg-surface transition-colors focus:outline-none"
           aria-label="Toggle menu"
         >
-          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
-        </button>
+          <Menu className="w-5 h-5" />
+        </motion.button>
 
         <nav className="hidden sm:flex items-center space-x-2 text-sm">
-          <Link to="/" className="text-gray-500 hover:text-gray-700">
+          <Link to="/" className="text-text-muted hover:text-white transition-colors font-medium">
             Home
           </Link>
           {getBreadcrumbs().slice(1).map((crumb, index) => (
             <span key={index} className="flex items-center space-x-2">
-              <span className="text-gray-400">/</span>
-              <span className="text-gray-900 font-medium">{crumb}</span>
+              <span className="text-white/20">/</span>
+              <span className="text-white font-semibold tracking-wide">{crumb}</span>
             </span>
           ))}
         </nav>
 
-        <h1 className="text-lg font-semibold text-gray-900 sm:hidden">
+        <h1 className="text-lg font-bold text-white sm:hidden tracking-wider">
           {getCurrentModule()}
         </h1>
       </div>
 
-      {/* Right section: Search, Theme, Notifications, User */}
-      <div className="flex items-center space-x-2">
+      {/* Right section: Search, System Status, Notifications, User */}
+      <div className="flex items-center space-x-3">
         {/* Global Search */}
         <div className="hidden md:block relative">
-          <input
-            type="text"
-            placeholder="Search..."
-            className={`w-64 pl-10 pr-4 py-2 rounded-lg border ${
-              searchFocused ? 'border-primary-500 ring-2 ring-primary-200' : 'border-gray-300'
-            } focus:outline-none focus:ring-2 focus:ring-primary-200 text-sm`}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
-          />
-          <svg
-            className="absolute left-3 top-2.5 w-4 h-4 text-gray-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
+          <motion.div
+            animate={{ width: searchFocused ? 300 : 220 }}
+            className="relative"
           >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            <input
+              type="text"
+              placeholder="Search..."
+              className={cn(
+                "w-full pl-10 pr-4 py-2 rounded-xl bg-surface/50 border border-white/10 text-sm text-white placeholder-text-muted transition-all outline-none",
+                searchFocused ? "border-accent/50 ring-2 ring-accent/20 bg-surface shadow-glow" : "hover:bg-surface/80 hover:border-white/20"
+              )}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
             />
-          </svg>
+            <Search className={cn("absolute left-3 top-2.5 w-4 h-4 transition-colors", searchFocused ? "text-accent-light" : "text-text-muted")} />
+          </motion.div>
         </div>
 
-        {/* Theme Toggle */}
-        <button
-          className="p-2 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
-          aria-label="Toggle theme"
+        {/* System Status / Agent */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="hidden lg:flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-surface/50 border border-white/10 text-text-muted hover:text-white transition-colors"
         >
-          <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-            />
-          </svg>
-        </button>
+          <Cpu className="w-4 h-4 text-accent" />
+          <span className="text-xs font-semibold tracking-wide">GEMINI 1.5 PRO</span>
+        </motion.button>
 
         {/* Notifications */}
-        <button
-          className="p-2 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 relative"
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          className="p-2 rounded-xl text-text-muted hover:text-white hover:bg-surface transition-colors relative"
           aria-label="Notifications"
         >
-          <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
-            />
-          </svg>
-          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-        </button>
+          <Bell className="w-5 h-5" />
+          <span className="absolute top-2 right-2 w-2 h-2 bg-accent-light rounded-full shadow-[0_0_8px_rgba(96,165,250,0.8)]"></span>
+        </motion.button>
 
         {/* User Menu */}
-        <button
-          className="p-2 rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+        <motion.button
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.95 }}
+          className="p-2 rounded-xl text-text-muted hover:text-white hover:bg-surface transition-colors bg-gradient-to-tr from-accent/20 to-transparent"
           aria-label="User menu"
         >
-          <svg className="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-            />
-          </svg>
-        </button>
+          <User className="w-5 h-5 text-accent-light" />
+        </motion.button>
       </div>
     </header>
-  )
+  );
 }
 
-export default TopBar
+export default TopBar;
