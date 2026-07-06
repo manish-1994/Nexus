@@ -86,8 +86,12 @@ function makeStars(n: number, cx: number, cy: number, minR: number, maxR: number
 export function NexusReactorCore({ state = 'idle', activeExecutions, reactorSize = 460 }: NexusReactorCoreProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const themeRef = useRef<Theme>(THEMES[state] ?? THEMES.idle);
+  const stateRef = useRef<ExecutionState>(state);
 
-  useEffect(() => { themeRef.current = THEMES[state] ?? THEMES.idle; }, [state]);
+  useEffect(() => {
+    stateRef.current = state;
+    themeRef.current = THEMES[state] ?? THEMES.idle;
+  }, [state]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -118,7 +122,7 @@ export function NexusReactorCore({ state = 'idle', activeExecutions, reactorSize
       ctx.clearRect(0, 0, W, H);
 
       // ── L0: Outer Atmospheric Bloom ──
-      const atmo = ctx.createRadialGradient(cx, cy, 0, cx, cy, cx * 0.95);
+      const atmo = ctx.createRadialGradient(cx, cy, 0, cx, cy, cx * 0.45);
       atmo.addColorStop(0,   `rgba(${r},${g},${b},0.09)`);
       atmo.addColorStop(0.45,`rgba(${r},${g},${b},0.04)`);
       atmo.addColorStop(0.75,`rgba(${r},${g},${b},0.015)`);
@@ -391,8 +395,14 @@ export function NexusReactorCore({ state = 'idle', activeExecutions, reactorSize
       const textAngle = -t * 0.18 * T.scanSpeed - Math.PI / 2;
       drawArcText(ctx, T.cogLabel, cx, cy, 178, textAngle, T.primary, 0.42, 7.5);
 
+      // Heuristically detect speaking / streaming
+      let speakerMod = 0;
+      if (stateRef.current === 'streaming' || stateRef.current === 'calling_provider') {
+        speakerMod = Math.max(0, Math.sin(t * 12) * Math.cos(t * 5.5) * 6 + Math.sin(t * 26) * 3);
+      }
+
       // ── L12: Energy nucleus ──
-      const nucSize = 20 + 3 * Math.sin(t * T.pulseHz * Math.PI * 2);
+      const nucSize = 20 + 3 * Math.sin(t * T.pulseHz * Math.PI * 2) + speakerMod;
       const nucGlow = ctx.createRadialGradient(cx, cy, 0, cx, cy, nucSize * 1.8);
       nucGlow.addColorStop(0, '#FFFFFF');
       nucGlow.addColorStop(0.2, T.primary);
@@ -408,7 +418,7 @@ export function NexusReactorCore({ state = 'idle', activeExecutions, reactorSize
 
       // ── L13: Sonar pulse wave (state-driven) ──
       const pulsePhase = (t * T.pulseHz) % 1;
-      const pulseR = 60 + pulsePhase * 110;
+      const pulseR = 60 + pulsePhase * 110 + speakerMod * 1.5;
       const pulseAlpha = (1 - pulsePhase) * 0.55;
       if (pulseAlpha > 0.02) {
         ctx.beginPath();
@@ -420,13 +430,13 @@ export function NexusReactorCore({ state = 'idle', activeExecutions, reactorSize
 
       // ── L14: Volumetric core bloom (final overlay) ──
       ctx.globalCompositeOperation = 'screen';
-      const bloom = ctx.createRadialGradient(cx, cy, 0, cx, cy, 55);
+      const bloom = ctx.createRadialGradient(cx, cy, 0, cx, cy, 35);
       bloom.addColorStop(0, `rgba(${r},${g},${b},0.55)`);
       bloom.addColorStop(0.4, `rgba(${r},${g},${b},0.18)`);
       bloom.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = bloom;
       ctx.beginPath();
-      ctx.arc(cx, cy, 55, 0, Math.PI * 2);
+      ctx.arc(cx, cy, 35, 0, Math.PI * 2);
       ctx.fill();
       ctx.globalCompositeOperation = 'source-over';
 
@@ -452,9 +462,9 @@ export function NexusReactorCore({ state = 'idle', activeExecutions, reactorSize
         }}
         animate={{
           boxShadow: [
-            `0 0 60px ${T.primary}28, 0 0 120px ${T.primary}12, inset 0 0 30px ${T.primary}0A`,
-            `0 0 100px ${T.primary}45, 0 0 200px ${T.primary}20, inset 0 0 50px ${T.primary}15`,
-            `0 0 60px ${T.primary}28, 0 0 120px ${T.primary}12, inset 0 0 30px ${T.primary}0A`,
+            `0 0 24px ${T.primary}28, 0 0 50px ${T.primary}12, inset 0 0 16px ${T.primary}0A`,
+            `0 0 36px ${T.primary}45, 0 0 70px ${T.primary}20, inset 0 0 24px ${T.primary}15`,
+            `0 0 24px ${T.primary}28, 0 0 50px ${T.primary}12, inset 0 0 16px ${T.primary}0A`,
           ],
         }}
         transition={{ boxShadow: { duration: 1 / (T.pulseHz || 0.28), repeat: Infinity, ease: 'easeInOut' } }}

@@ -47,7 +47,7 @@ function Layout({ children }: LayoutProps) {
       {/* Top Bar */}
       <TopBar onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden min-w-0">
         {/* Sidebar */}
         <AnimatePresence initial={false}>
           {sidebarOpen && (
@@ -64,17 +64,17 @@ function Layout({ children }: LayoutProps) {
         </AnimatePresence>
 
         {/* Main Content */}
-        <main className="flex-1 flex flex-col relative z-10">
+        <main className="flex-1 flex flex-col relative z-10 min-w-0">
           {isChatRoute ? (
             /* Chat — full bleed, no glass wrapper */
-            <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col overflow-hidden min-w-0">
               {children}
             </div>
           ) : (
             /* Other pages — glass surface card */
-            <div className="flex-1 flex flex-col m-4 ml-0">
-              <div className="glass-surface flex-1 rounded-card overflow-y-auto">
-                <div className="p-8 h-full">
+            <div className="flex-1 flex flex-col m-4 ml-0 min-w-0 min-h-0">
+              <div className="glass-surface flex-1 rounded-card min-w-0 min-h-0 flex flex-col overflow-hidden">
+                <div className={location.pathname === '/' ? "flex-1 flex flex-col min-h-0" : "p-8 overflow-y-auto flex-1 min-h-0"}>
                   {children}
                 </div>
               </div>

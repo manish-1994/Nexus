@@ -5,6 +5,7 @@ Provides real-time state from the Agent Operating System:
 - Event Bus (recent events, filtered history)
 - Agent Registry (built-in + custom agents, capabilities)
 - Orchestrator health (agent statuses)
+- Workflow Execution Engine (workflows, tasks, progress)
 
 These are lightweight, read-only endpoints. They never modify state.
 """
@@ -12,12 +13,18 @@ These are lightweight, read-only endpoints. They never modify state.
 import logging
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
+from sqlalchemy.orm import Session
 
 from agents.orchestration.agent_config import DEFAULT_AGENTS, AgentConfig, AgentRole
 from agents.orchestration.agent_registry import registry as pluggable_registry
 from agents.orchestration.event_bus import EventType
 from agents.orchestration.execution_store import get_execution_store
+from database import get_db
+from models.workflow import Workflow, Task, WorkflowStatus, TaskStatus
+from workflow.scheduler.scheduler import get_scheduler
+from workflow.queue.queue import get_queue
+from workflow.events.event_bus import get_event_bus as get_workflow_event_bus, WorkflowEventType
 
 logger = logging.getLogger("mission_control")
 
@@ -105,6 +112,41 @@ async def get_events(
         "count": len(events),
         "subscriber_count": event_bus.subscriber_count,
     }
+
+
+@router.get("/events/stream")
+async def stream_events():
+    """Stream all execution events in real-time from the Event Bus using SSE."""
+    from fastapi.responses import StreamingResponse
+    import json
+    import asyncio
+
+    store = get_execution_store()
+    event_bus = store._event_bus
+
+    async def event_generator():
+        queue = asyncio.Queue()
+
+        async def handler(event) -> None:
+            await queue.put(event)
+
+        if event_bus:
+            event_bus.subscribe_all(handler)
+        
+        try:
+            yield f"data: {json.dumps({'type': 'connected'})}\n\n"
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=10.0)
+                    yield f"data: {json.dumps(event.to_dict())}\n\n"
+                except asyncio.TimeoutError:
+                    yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
+        finally:
+            if event_bus:
+                event_bus.unsubscribe_all(handler)
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
 
 
 # ---------------------------------------------------------------------------
@@ -216,22 +258,264 @@ async def get_orchestrator_health() -> Dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Workflow Execution Engine — workflows, tasks, progress
+# ---------------------------------------------------------------------------
+
+@router.get("/workflows")
+async def get_active_workflows(
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Get all active workflows from the scheduler and queue."""
+    scheduler = get_scheduler()
+    queue = get_queue()
+    
+    workflows = []
+    
+    # Get active workflows from scheduler
+    if scheduler:
+        active = scheduler.get_all_active_workflows()
+        for wf in active:
+            workflows.append({
+                "workflow_id": wf["workflow_id"],
+                "status": wf["status"],
+                "progress": wf["progress"],
+                "total_tasks": wf["total_tasks"],
+                "completed_tasks": wf["completed_tasks"],
+                "failed_tasks": wf["failed_tasks"],
+                "running_tasks": wf["running_tasks"],
+                "current_task": wf["current_task"],
+                "started_at": wf["started_at"],
+                "source": "scheduler",
+            })
+    
+    # Get queued workflows from database
+    queued_workflows = db.query(Workflow).filter(
+        Workflow.status.in_([WorkflowStatus.CREATED, WorkflowStatus.QUEUED])
+    ).all()
+    
+    for wf in queued_workflows:
+        workflows.append({
+            "workflow_id": wf.workflow_id,
+            "status": wf.status.value,
+            "progress": 0,
+            "total_tasks": len(wf.tasks),
+            "completed_tasks": 0,
+            "failed_tasks": 0,
+            "running_tasks": 0,
+            "current_task": None,
+            "started_at": wf.started_at.isoformat() if wf.started_at else None,
+            "source": "queue",
+        })
+    
+    # Get queue status
+    queue_status = queue.get_global_queue_status() if queue else {}
+    
+    return {
+        "workflows": workflows,
+        "total": len(workflows),
+        "queue_status": queue_status,
+    }
+
+
+@router.get("/workflows/{workflow_id}")
+async def get_workflow_details(
+    workflow_id: str,
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Get detailed workflow information including tasks."""
+    # Check scheduler first
+    scheduler = get_scheduler()
+    if scheduler:
+        status = scheduler.get_workflow_status(workflow_id)
+        if status:
+            # Get tasks from database
+            workflow = db.query(Workflow).filter(Workflow.workflow_id == workflow_id).first()
+            if workflow:
+                tasks = []
+                for task in workflow.tasks:
+                    tasks.append({
+                        "task_id": task.task_id,
+                        "agent": task.agent,
+                        "description": task.description,
+                        "dependencies": task.dependencies,
+                        "status": task.status.value,
+                        "progress": task.progress,
+                        "output": task.output,
+                        "error_message": task.error_message,
+                        "started_at": task.started_at.isoformat() if task.started_at else None,
+                        "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+                        "latency_ms": task.latency_ms,
+                        "retry_count": task.retry_count,
+                    })
+                status["tasks"] = tasks
+            return status
+    
+    # Fallback to database
+    workflow = db.query(Workflow).filter(Workflow.workflow_id == workflow_id).first()
+    if not workflow:
+        return {"error": "Workflow not found", "workflow_id": workflow_id}
+    
+    tasks = []
+    for task in workflow.tasks:
+        tasks.append({
+            "task_id": task.task_id,
+            "agent": task.agent,
+            "description": task.description,
+            "dependencies": task.dependencies,
+            "status": task.status.value,
+            "progress": task.progress,
+            "output": task.output,
+            "error_message": task.error_message,
+            "started_at": task.started_at.isoformat() if task.started_at else None,
+            "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+            "latency_ms": task.latency_ms,
+            "retry_count": task.retry_count,
+        })
+    
+    return {
+        "workflow_id": workflow.workflow_id,
+        "status": workflow.status.value,
+        "prompt": workflow.prompt,
+        "execution_graph": workflow.execution_graph,
+        "results": workflow.results,
+        "errors": workflow.errors,
+        "total_input_tokens": workflow.total_input_tokens,
+        "total_output_tokens": workflow.total_output_tokens,
+        "total_tokens": workflow.total_tokens,
+        "total_cost": workflow.total_cost,
+        "started_at": workflow.started_at.isoformat() if workflow.started_at else None,
+        "completed_at": workflow.completed_at.isoformat() if workflow.completed_at else None,
+        "total_latency_ms": workflow.total_latency_ms,
+        "tasks": tasks,
+    }
+
+
+@router.get("/workflows/{workflow_id}/tasks")
+async def get_workflow_tasks(
+    workflow_id: str,
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Get all tasks for a workflow."""
+    workflow = db.query(Workflow).filter(Workflow.workflow_id == workflow_id).first()
+    if not workflow:
+        return {"error": "Workflow not found", "workflow_id": workflow_id}
+    
+    tasks = []
+    for task in workflow.tasks:
+        tasks.append({
+            "task_id": task.task_id,
+            "agent": task.agent,
+            "description": task.description,
+            "dependencies": task.dependencies,
+            "status": task.status.value,
+            "progress": task.progress,
+            "input": task.input,
+            "output": task.output,
+            "error_message": task.error_message,
+            "error_code": task.error_code,
+            "started_at": task.started_at.isoformat() if task.started_at else None,
+            "completed_at": task.completed_at.isoformat() if task.completed_at else None,
+            "latency_ms": task.latency_ms,
+            "retry_count": task.retry_count,
+            "max_retries": task.max_retries,
+            "input_tokens": task.input_tokens,
+            "output_tokens": task.output_tokens,
+            "total_tokens": task.total_tokens,
+            "cost": task.cost,
+        })
+    
+    return {
+        "workflow_id": workflow_id,
+        "tasks": tasks,
+        "total": len(tasks),
+    }
+
+
+@router.get("/workflows/{workflow_id}/events")
+async def stream_workflow_events(
+    workflow_id: str,
+    db: Session = Depends(get_db),
+):
+    """Stream workflow events via Server-Sent Events (SSE)."""
+    from fastapi.responses import StreamingResponse
+    import json
+    import asyncio
+    
+    # Verify workflow exists
+    workflow = db.query(Workflow).filter(Workflow.workflow_id == workflow_id).first()
+    if not workflow:
+        return {"error": "Workflow not found", "workflow_id": workflow_id}
+    
+    event_bus = get_workflow_event_bus()
+    
+    async def event_generator():
+        queue = asyncio.Queue()
+        
+        def handler(event):
+            if event.workflow_id == workflow_id:
+                asyncio.create_task(queue.put(event.to_sse()))
+        
+        event_bus.subscribe_all(handler)
+        
+        try:
+            # Send initial events from history
+            history = event_bus.get_history(workflow_id=workflow_id, limit=50)
+            for event in history:
+                yield event.to_sse()
+            
+            # Stream new events
+            while True:
+                try:
+                    event_data = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    yield event_data
+                except asyncio.TimeoutError:
+                    # Send keepalive
+                    yield ": keepalive\n\n"
+        finally:
+            event_bus.unsubscribe_all(handler)
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
+# ---------------------------------------------------------------------------
 # Summary — single endpoint returning everything the Dashboard needs
 # ---------------------------------------------------------------------------
 
 @router.get("/summary")
-async def get_mission_control_summary() -> Dict[str, Any]:
+async def get_mission_control_summary(
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
     """Single endpoint returning all Mission Control data in one call."""
     store = get_execution_store()
+    scheduler = get_scheduler()
+    queue = get_queue()
+    workflow_event_bus = get_workflow_event_bus()
 
-    # Active executions
+    # Active executions (from Agent OS)
     active_executions = store.get_all_active()
 
-    # Recent events (last 20)
+    # Recent events (last 20) - from both event buses
     events = []
     if store._event_bus:
         raw_events = store._event_bus.get_history(limit=20)
         events = [e.to_dict() for e in raw_events]
+    
+    # Add workflow events
+    if workflow_event_bus:
+        wf_events = workflow_event_bus.get_history(limit=20)
+        events.extend([e.to_dict() for e in wf_events])
+    
+    # Sort by timestamp
+    events.sort(key=lambda e: e.get("timestamp", ""), reverse=True)
+    events = events[:20]
 
     # All agents
     builtin_agents = {role: config.to_dict() for role, config in DEFAULT_AGENTS.items()}
@@ -246,6 +530,14 @@ async def get_mission_control_summary() -> Dict[str, Any]:
         agent_health[role] = {"status": "available", "type": "builtin"}
     for role in pluggable_registry.roles:
         agent_health[role] = {"status": "registered", "type": "custom"}
+
+    # Active workflows
+    active_workflows = []
+    if scheduler:
+        active_workflows = scheduler.get_all_active_workflows()
+    
+    # Queue status
+    queue_status = queue.get_global_queue_status() if queue else {}
 
     return {
         "timestamp": __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat(),
@@ -263,4 +555,8 @@ async def get_mission_control_summary() -> Dict[str, Any]:
             "all": {**builtin_agents, **custom_agents},
         },
         "agent_health": agent_health,
+        "workflows": {
+            "active": active_workflows,
+            "queue_status": queue_status,
+        },
     }

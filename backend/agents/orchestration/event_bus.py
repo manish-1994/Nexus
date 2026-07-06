@@ -273,6 +273,27 @@ class EventBus:
 
 
 # ---------------------------------------------------------------------------
+# Singleton accessor
+# ---------------------------------------------------------------------------
+
+_event_bus: Optional["EventBus"] = None
+
+
+def get_event_bus() -> "EventBus":
+    """Get or create the singleton EventBus."""
+    global _event_bus
+    if _event_bus is None:
+        _event_bus = EventBus()
+    return _event_bus
+
+
+def set_event_bus(event_bus: "EventBus") -> None:
+    """Set the singleton EventBus (for testing)."""
+    global _event_bus
+    _event_bus = event_bus
+
+
+# ---------------------------------------------------------------------------
 # Convenience factory methods for common events
 # ---------------------------------------------------------------------------
 

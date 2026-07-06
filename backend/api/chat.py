@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List
+from typing import List, Optional
 
 from database import get_db
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,6 +11,7 @@ from services.conversation_service import ConversationService
 from services.execution_manager import AgentExecutionManager
 from services.message_service import MessageService
 from sqlalchemy.orm import Session
+from agents.orchestration.orchestrator import Orchestrator
 
 router = APIRouter()
 logger = logging.getLogger("chat")
@@ -270,67 +271,82 @@ async def send_message(
 
     try:
         if request.agent_id:
-            # Delegate to AgentExecutionManager for full agent execution lifecycle
+            # Delegate to Orchestrator for full multi-agent execution lifecycle
             logger.info(
-                "[DEBUG] Delegating to AgentExecutionManager agent_id=%s",
+                "[DEBUG] Delegating to Orchestrator agent_id=%s",
                 request.agent_id,
             )
-            execution_manager = AgentExecutionManager(db)
-            execution = execution_manager.create_execution(
-                agent_id=request.agent_id,
-                conversation_id=request.conversation_id,
-                input_messages=[{"role": "user", "content": request.content}],
+            orchestrator = Orchestrator(
+                db=db,
+                provider_id=eff_provider_id,
+                model=eff_model,
             )
-            execution = execution_manager.submit(execution.execution_id)
-            logger.info(
-                "[DEBUG] Execution created execution_id=%s status=%s",
-                execution.execution_id,
-                execution.status,
-            )
-
+            
+            # Get conversation history for context
+            from services.message_service import MessageService
+            message_service = MessageService(db)
+            conversation_history = message_service.get_conversation_history(request.conversation_id)
+            
             if request.stream:
                 # Return streaming response with execution tracking
-                async def execution_stream_generator():
+                async def orchestrator_stream_generator():
                     try:
-                        async for chunk in execution_manager.execute_stream(
-                            execution.execution_id,
-                            provider_id_override=eff_provider_id,
-                            model_override=eff_model,
+                        execution_id = None
+                        async for chunk in orchestrator.run_stream(
+                            user_message=request.content,
+                            conversation_history=conversation_history,
+                            conversation_id=request.conversation_id,
                         ):
-                            yield f"data: {json.dumps({'content': chunk, 'execution_id': execution.execution_id})}\n\n"
+                            # Capture execution_id from the first chunk if available
+                            if execution_id is None:
+                                active = orchestrator._execution_store.get_all_active()
+                                if active:
+                                    execution_id = active[0]['execution_id']
+                            yield f"data: {json.dumps({'content': chunk, 'execution_id': execution_id or 'unknown'})}\n\n"
                     except Exception as e:
                         logger.exception(
-                            "streaming error in execution_stream_generator"
+                            "streaming error in orchestrator_stream_generator"
                         )
                         yield sse_error(str(e))
 
                 return StreamingResponse(
-                    execution_stream_generator(),
+                    orchestrator_stream_generator(),
                     media_type="text/event-stream",
                 )
             else:
                 # Non-streaming execution
-                result = await execution_manager.execute(
-                    execution.execution_id,
-                    provider_id_override=eff_provider_id,
-                    model_override=eff_model,
+                result = await orchestrator.run(
+                    user_message=request.content,
+                    conversation_history=conversation_history,
+                    conversation_id=request.conversation_id,
                 )
                 logger.info(
-                    "[DEBUG] execution_manager.execute completed execution_id=%s",
-                    execution.execution_id,
+                    "[DEBUG] orchestrator.run completed execution_id=%s",
+                    result.get("execution_id"),
+                )
+                # Save assistant message to database
+                assistant_message = service._save_assistant_message(
+                    request.conversation_id,
+                    result.get("response", ""),
+                    provider=str(eff_provider_id),
+                    model=eff_model,
                 )
                 return {
                     "stream": False,
                     "conversation_id": request.conversation_id,
-                    "execution_id": execution.execution_id,
+                    "execution_id": result.get("execution_id"),
                     "message": {
-                        "id": result.get("message_id"),
-                        "role": "assistant",
-                        "content": result.get("response", ""),
-                        "provider": str(eff_provider_id),
-                        "model": eff_model,
-                        "tokens_used": result.get("tokens_used"),
-                        "created_at": result.get("completed_at"),
+                        "id": assistant_message.id,
+                        "role": assistant_message.role,
+                        "content": assistant_message.content,
+                        "provider": assistant_message.provider,
+                        "model": assistant_message.model,
+                        "tokens_used": assistant_message.tokens_used,
+                        "created_at": (
+                            assistant_message.created_at.isoformat()
+                            if assistant_message.created_at
+                            else None
+                        ),
                     },
                 }
         else:

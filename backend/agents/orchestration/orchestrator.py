@@ -48,6 +48,7 @@ from agents.orchestration.event_bus import (
     make_execution_completed_event,
     make_task_started_event,
     make_task_completed_event,
+    get_event_bus,
 )
 from agents.orchestration.execution_store import (
     ExecutionState,
@@ -102,7 +103,7 @@ class Orchestrator:
         self.db = db
         self.provider_id = provider_id
         self.model = model
-        self._event_bus = event_bus
+        self._event_bus = event_bus or get_event_bus()
         self._execution_store = execution_store or get_execution_store()
 
         # Agent factory registry — maps role to constructor

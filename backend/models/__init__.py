@@ -8,6 +8,7 @@ from .model import Model
 from .provider import Provider
 from .settings import Settings
 from .usage import Usage
+from .workflow import Workflow, Task, WorkflowEvent, WorkflowStatus, TaskStatus
 
 __all__ = [
     "Base",
@@ -21,4 +22,9 @@ __all__ = [
     "Agent",
     "Execution",
     "ExecutionStatus",
+    "Workflow",
+    "Task",
+    "WorkflowEvent",
+    "WorkflowStatus",
+    "TaskStatus",
 ]

@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 import threading
 
 from .agent_config import AgentRole, ExecutionStatus
-from .event_bus import ExecutionEvent, EventType
+from .event_bus import EventBus, ExecutionEvent, EventType
 
 
 class ExecutionState(str, Enum):
@@ -112,11 +112,13 @@ class LiveExecutionStore:
     def __init__(self, event_bus: "EventBus" = None):
         self._executions: Dict[str, ActiveExecution] = {}
         self._lock = threading.Lock()
-        self._event_bus = event_bus
+        
+        # Use shared EventBus singleton if not provided
+        from .event_bus import get_event_bus
+        self._event_bus = event_bus or get_event_bus()
 
-        # Subscribe to event bus if provided
-        if event_bus:
-            event_bus.subscribe_all(self._on_event)
+        # Subscribe to event bus
+        self._event_bus.subscribe_all(self._on_event)
 
     # ------------------------------------------------------------------
     # Execution lifecycle
@@ -456,10 +458,12 @@ _execution_store: Optional[LiveExecutionStore] = None
 
 
 def get_execution_store() -> LiveExecutionStore:
-    """Get or create the singleton LiveExecutionStore."""
+    """Get or create the singleton LiveExecutionStore with attached EventBus."""
     global _execution_store
     if _execution_store is None:
-        _execution_store = LiveExecutionStore()
+        from .event_bus import get_event_bus
+        event_bus = get_event_bus()
+        _execution_store = LiveExecutionStore(event_bus=event_bus)
     return _execution_store
 
 

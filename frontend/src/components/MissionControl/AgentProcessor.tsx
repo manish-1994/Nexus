@@ -63,6 +63,63 @@ function AgentGlyph({ role, color, size = 26 }: { role: string; color: string; s
           <line x1="2" y1="20" x2="22" y2="20" opacity="0.35" />
         </svg>
       );
+    case 'browser':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} style={s}>
+          <rect x="2" y="3" width="20" height="18" rx="2" ry="2" />
+          <line x1="2" y1="8" x2="22" y2="8" />
+          <circle cx="6" cy="5.5" r="1" fill={color} />
+          <circle cx="9" cy="5.5" r="1" fill={color} />
+          <circle cx="12" cy="5.5" r="1" fill={color} />
+        </svg>
+      );
+    case 'terminal':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} style={s}>
+          <polyline points="4,17 10,11 4,5" />
+          <line x1="12" y1="19" x2="20" y2="19" />
+        </svg>
+      );
+    case 'vision':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} style={s}>
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      );
+    case 'voice':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} style={s}>
+          <path d="M12 1v11" />
+          <path d="M19 10.5a7 7 0 0 1-14 0" />
+          <line x1="12" y1="22" x2="12" y2="19" />
+        </svg>
+      );
+    case 'workflow':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} style={s}>
+          <rect x="3" y="3" width="6" height="6" rx="1" />
+          <rect x="15" y="3" width="6" height="6" rx="1" />
+          <rect x="9" y="15" width="6" height="6" rx="1" />
+          <path d="M6 9v3h6v3" />
+          <path d="M18 9v3H12" />
+        </svg>
+      );
+    case 'prediction':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} style={s}>
+          <line x1="18" y1="20" x2="18" y2="10" />
+          <line x1="12" y1="20" x2="12" y2="4" />
+          <line x1="6" y1="20" x2="6" y2="14" />
+        </svg>
+      );
+    case 'automation':
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} style={s}>
+          <circle cx="12" cy="12" r="10" />
+          <polyline points="12,6 12,12 16,14" />
+        </svg>
+      );
     default:
       return (
         <svg viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={sw} style={s}>
@@ -81,7 +138,7 @@ const STATUS: Record<AgentStatus, NodeStyle> = {
   running:   { color: '#00D4FF', glowColor: 'rgba(0,212,255,0.55)',  label: 'RUNNING',   pulse: true,  spin: true  },
   streaming: { color: '#38BDF8', glowColor: 'rgba(56,189,248,0.60)', label: 'STREAMING', pulse: true,  spin: true  },
   completed: { color: '#00FF95', glowColor: 'rgba(0,255,149,0.45)',  label: 'DONE',      pulse: false, spin: false },
-  failed:    { color: '#FF4D67', glowColor: 'rgba(255,77,103,0.55)', label: 'FAULT',     pulse: true,  spin: false },
+  failed:    { color: '#F59E0B', glowColor: 'rgba(245,158,11,0.55)', label: 'FAILED',    pulse: true,  spin: false },
   disabled:  { color: '#475569', glowColor: 'rgba(71,85,105,0.12)',  label: 'OFFLINE',   pulse: false, spin: false },
 };
 
@@ -97,11 +154,13 @@ export interface AgentProcessorProps {
   currentTask?: string | null;
   elapsedMs?: number;
   onClick?: () => void;
+  disableFloat?: boolean;
+  connectionAnchor?: 'top' | 'right' | 'bottom' | 'left';
 }
 
 export function AgentProcessor({
   role, config, status, isActive, position, dimmed, depthScale = 1.0, depthBlur = 0,
-  currentTask, elapsedMs, onClick,
+  currentTask, elapsedMs, onClick, disableFloat = false,
 }: AgentProcessorProps) {
   const [hovered, setHovered] = useState(false);
   const S = STATUS[status] ?? STATUS.idle;
@@ -110,7 +169,7 @@ export function AgentProcessor({
   // Deterministic float timing per role (no Math.random in render)
   const floatDuration = 3.8 + (role.charCodeAt(0) % 5) * 0.5;
   const floatDelay   = (role.charCodeAt(1) ?? 0) % 4 * 0.6;
-  const floatAmp     = isActive ? 2 : 4;
+  const floatAmp     = disableFloat ? 0 : (isActive ? 2 : 4);
 
   // Deterministic glow pulse timing
   const glowDuration = 2.2 + (role.charCodeAt(2) ?? 0) % 3 * 0.4;
@@ -137,14 +196,24 @@ export function AgentProcessor({
       transition={{
         opacity: { duration: 0.5 },
         scale: { type: 'spring', stiffness: 55, damping: 18 },
-        left: { type: 'spring', stiffness: 32, damping: 14 },
-        top:  { type: 'spring', stiffness: 32, damping: 14 },
+        left: { duration: 0 },
+        top:  { duration: 0 },
       }}
     >
-      {/* Float oscillation */}
+      {/* Float oscillation & failed shake */}
       <motion.div
-        animate={{ y: [-floatAmp, floatAmp, -floatAmp] }}
-        transition={{ duration: floatDuration, repeat: Infinity, ease: 'easeInOut', delay: floatDelay }}
+        animate={status === 'failed' ? {
+          x: [0, -2, 2, -2, 2, 0],
+          y: [-floatAmp, floatAmp, -floatAmp],
+        } : {
+          y: [-floatAmp, floatAmp, -floatAmp],
+        }}
+        transition={status === 'failed' ? {
+          x: { duration: 0.4, repeat: Infinity, ease: 'linear' },
+          y: { duration: floatDuration, repeat: Infinity, ease: 'easeInOut', delay: floatDelay }
+        } : {
+          duration: floatDuration, repeat: Infinity, ease: 'easeInOut', delay: floatDelay
+        }}
         className="pointer-events-auto cursor-pointer"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -179,7 +248,8 @@ export function AgentProcessor({
               : hovered
                 ? `0 0 20px ${S.glowColor}, inset 0 0 10px ${S.color}10`
                 : `0 0 10px ${S.glowColor.replace(',0.', ',0.08,')}`,
-            minWidth: 78,
+            width: 80,
+            height: 96,
             transition: 'border-color 0.4s, box-shadow 0.4s',
           }}
         >
@@ -197,10 +267,17 @@ export function AgentProcessor({
           <div className="absolute bottom-1 left-1 w-2 h-2 border-b border-l pointer-events-none" style={{ borderColor: `${S.color}50` }} />
           <div className="absolute bottom-1 right-1 w-2 h-2 border-b border-r pointer-events-none" style={{ borderColor: `${S.color}50` }} />
 
-          {/* Glyph area */}
+          {/* Glyph area with central neural socket */}
           <div className="relative w-12 h-12 flex items-center justify-center">
+            <div className="absolute inset-0 rounded-full animate-ping opacity-25" style={{ background: S.color, animationDuration: '3s' }} />
             <div className="absolute inset-0 rounded-full" style={{ background: `radial-gradient(circle, ${S.color}1E 0%, transparent 72%)` }} />
-            <AgentGlyph role={role} color={S.color} size={28} />
+            {/* Neural Connection Port */}
+            <div className="absolute w-2.5 h-2.5 rounded-full border border-[#00E5FF]/70 bg-[#090D16] z-0 flex items-center justify-center shadow-[0_0_8px_#00E5FF]">
+              <div className="w-1 h-1 rounded-full bg-[#00E5FF]" />
+            </div>
+            <div className="relative z-10">
+              <AgentGlyph role={role} color={S.color} size={28} />
+            </div>
           </div>
 
           {/* Compact label */}
