@@ -4,10 +4,11 @@ Idempotent migrations that run on application startup.
 Each migration is a callable that receives a SQLAlchemy connection
 and applies the necessary schema changes.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import List, Tuple
+from typing import Callable, List, Tuple
 
 from sqlalchemy import inspect, text
 from sqlalchemy.engine import Connection
@@ -16,14 +17,16 @@ logger = logging.getLogger(__name__)
 
 # Migration registry: list of (version, description, migration_func)
 # Versions are integers, monotonically increasing.
-MIGRATIONS: List[Tuple[int, str, callable]] = []
+MIGRATIONS: List[Tuple[int, str, Callable[[Connection], None]]] = []
 
 
 def register(version: int, description: str):
     """Decorator to register a migration function."""
-    def decorator(func: callable):
+
+    def decorator(func: Callable[[Connection], None]):
         MIGRATIONS.append((version, description, func))
         return func
+
     return decorator
 
 
@@ -78,6 +81,88 @@ def migration_002_add_agent_config_columns(conn: Connection) -> None:
         logger.info("is_default column already exists, skipping")
 
 
+@register(3, "Add execution_logs table for agent runtime")
+def migration_003_add_execution_logs(conn: Connection) -> None:
+    """Create the execution_logs table for tracking agent execution lifecycle."""
+    inspector = inspect(conn)
+    table_names = inspector.get_table_names()
+
+    if "execution_logs" in table_names:
+        logger.info("execution_logs table already exists, skipping")
+        return
+
+    logger.info("Creating execution_logs table")
+    conn.execute(text("""
+        CREATE TABLE execution_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            execution_id VARCHAR(36) NOT NULL UNIQUE,
+            agent_id INTEGER NOT NULL REFERENCES agents(id),
+            conversation_id INTEGER NULL REFERENCES conversations(id),
+            status VARCHAR(20) NOT NULL DEFAULT 'idle',
+            provider_id INTEGER NULL REFERENCES providers(id),
+            model VARCHAR(255) NULL,
+            input_messages TEXT NULL,
+            system_prompt TEXT NULL,
+            output_response TEXT NULL,
+            streaming_chunks INTEGER DEFAULT 0,
+            input_tokens INTEGER DEFAULT 0,
+            output_tokens INTEGER DEFAULT 0,
+            total_tokens INTEGER DEFAULT 0,
+            cost FLOAT DEFAULT 0.0,
+            latency_ms INTEGER NULL,
+            retry_count INTEGER DEFAULT 0,
+            max_retries INTEGER DEFAULT 3,
+            fallback_provider_id INTEGER NULL REFERENCES providers(id),
+            fallback_model VARCHAR(255) NULL,
+            tool_calls TEXT NULL,
+            error_message TEXT NULL,
+            error_code VARCHAR(50) NULL,
+            created_at DATETIME NOT NULL DEFAULT (datetime('now')),
+            started_at DATETIME NULL,
+            completed_at DATETIME NULL,
+            updated_at DATETIME NOT NULL DEFAULT (datetime('now'))
+        )
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS idx_execution_logs_execution_id
+        ON execution_logs (execution_id)
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS idx_execution_logs_status
+        ON execution_logs (status)
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS idx_execution_logs_agent_id
+        ON execution_logs (agent_id)
+    """))
+    conn.execute(text("""
+        CREATE INDEX IF NOT EXISTS idx_execution_logs_created_at
+        ON execution_logs (created_at)
+    """))
+    logger.info("execution_logs table created successfully")
+
+
+@register(4, "Add tool_calls column to execution_logs table")
+def migration_004_add_tool_calls(conn: Connection) -> None:
+    """Add tool_calls JSON column to execution_logs for tracking tool invocations."""
+    inspector = inspect(conn)
+    table_names = inspector.get_table_names()
+
+    if "execution_logs" not in table_names:
+        logger.info("execution_logs table does not exist yet, skipping")
+        return
+
+    columns = [col["name"] for col in inspector.get_columns("execution_logs")]
+
+    if "tool_calls" not in columns:
+        logger.info("Adding tool_calls column to execution_logs table")
+        conn.execute(text("""
+            ALTER TABLE execution_logs ADD COLUMN tool_calls TEXT NULL
+        """))
+    else:
+        logger.info("tool_calls column already exists, skipping")
+
+
 def get_current_schema_version(conn: Connection) -> int:
     """Get the current schema version from the database.
 
@@ -126,10 +211,13 @@ def run_migrations(conn: Connection) -> None:
         logger.info("Applying migration %d: %s", version, description)
         try:
             func(conn)
-            conn.execute(text("""
+            conn.execute(
+                text("""
                 UPDATE schema_version SET version = :version, applied_at = datetime('now')
                 WHERE id = 1
-            """), {"version": version})
+            """),
+                {"version": version},
+            )
             conn.commit()
             logger.info("Migration %d applied successfully", version)
         except Exception as exc:

@@ -11,7 +11,7 @@ interface ProviderListProps {
 function ProviderList({ providers, onTest, onDelete, onDiscoverModels }: ProviderListProps) {
   if (providers.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+      <div className="glass-surface rounded-card p-lg text-center text-text-muted">
         No providers configured. Add your first provider to get started.
       </div>
     )

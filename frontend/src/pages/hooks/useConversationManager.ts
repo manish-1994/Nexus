@@ -22,9 +22,8 @@ export function useConversationManager() {
 
   const createMutation = useMutation({
     mutationFn: chatApi.createConversation,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['conversations'] })
-    },
+    // No onSuccess invalidate - we handle optimistic updates manually in handleNewConversation
+    // to avoid race condition where refetch overwrites our optimistic replacement
   })
 
   const deleteMutation = useMutation({

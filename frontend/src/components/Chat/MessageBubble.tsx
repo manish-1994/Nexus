@@ -1,11 +1,12 @@
 import { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { motion } from 'framer-motion';
-import { Cpu, User, AlertTriangle, Zap, CheckCircle2, Server, Clock } from 'lucide-react';
-import type { Message } from '../../types/chat';
+import { Cpu, User, AlertTriangle, Zap, CheckCircle2, Clock, Activity } from 'lucide-react';
+import type { Message, MessageStatus } from '../../types/chat';
 import { ThinkingBubble } from './ThinkingBubble';
 import { StreamingBubble } from './StreamingBubble';
-import { cn } from '../common/Motion';
+import { ProviderIcon } from './ProviderIcon';
+import { cn, springs } from '../common/Motion';
 
 interface MessageBubbleProps {
   message: Message;
@@ -29,122 +30,237 @@ function formatTime(timestamp: string): string {
   return date.toLocaleDateString().toUpperCase();
 }
 
+/** Map a message status to a small status indicator shown beneath assistant responses. */
+function StatusIndicator({ status, hasError }: { status?: MessageStatus; hasError: boolean }) {
+  if (hasError) {
+    return (
+      <span className="chat-status chat-status--error mt-2">
+        <span className="chat-status-dot" />
+        Error
+      </span>
+    );
+  }
+  if (status === 'generating') {
+    return (
+      <span className="chat-status chat-status--streaming mt-2">
+        <span className="chat-status-dot" />
+        Streaming...
+      </span>
+    );
+  }
+  if (status === 'sending') {
+    return (
+      <span className="chat-status chat-status--thinking mt-2">
+        <span className="chat-status-dot" />
+        Sending...
+      </span>
+    );
+  }
+  if (status === 'completed' || status === 'sent') {
+    return (
+      <span className="chat-status chat-status--completed mt-2">
+        <span className="chat-status-dot" />
+        Completed
+      </span>
+    );
+  }
+  return null;
+}
+
 export const MessageBubble = memo(function MessageBubble({
   message,
   onRetry,
   onCancel,
-  ariaLabel
+  ariaLabel,
 }: MessageBubbleProps) {
   const isThinking = message.isThinking;
   const hasError = !!message.streamError;
   const isUser = message.role === 'user';
+  const isStreaming = message.status === 'generating';
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ type: "spring", stiffness: 200, damping: 20 }}
-      className={cn("flex w-full mb-6", isUser ? "justify-end" : "justify-start")}
+      // User messages slide from the right; assistant messages fade+scale in.
+      initial={isUser ? { opacity: 0, x: 24 } : { opacity: 0, scale: 0.97 }}
+      animate={isUser ? { opacity: 1, x: 0 } : { opacity: 1, scale: 1 }}
+      transition={springs.smooth}
+      className={cn('flex w-full', isUser ? 'justify-end' : 'justify-start')}
       aria-label={ariaLabel}
       role="article"
     >
-      <div
+      <motion.div
         className={cn(
-          "max-w-[80%] rounded-2xl p-6 backdrop-blur-md border shadow-lg relative overflow-hidden",
-          isUser 
-            ? "bg-accent/15 border-accent/30 text-white rounded-tr-none ml-12 shadow-[0_0_20px_rgba(59,130,246,0.15)]" 
-            : hasError 
-            ? "bg-danger/10 border-danger/30 text-red-100 rounded-tl-none mr-12" 
-            : "bg-surface/40 border-white/5 text-text rounded-tl-none mr-12 shadow-[0_4px_30px_rgba(0,0,0,0.2)]"
+          'rounded-bubble backdrop-blur-md border relative overflow-hidden',
+          isUser
+            ? 'bg-accent/15 border-accent/30 text-text rounded-tr-none max-w-[65%]'
+            : hasError
+            ? 'bg-danger/10 border-danger/30 text-text rounded-tl-none max-w-[75%]'
+            : 'glass-surface text-text rounded-tl-none max-w-[75%]'
         )}
+        style={{ padding: '20px' }}
+        whileHover={{
+          boxShadow: '0 0 24px rgba(0,229,255,0.18), 0 4px 20px rgba(0,0,0,0.12)',
+        }}
       >
         {/* Glow indicator bar on the side */}
-        <div className={cn(
-          "absolute left-0 top-0 bottom-0 w-1",
-          isUser ? "bg-accent" : hasError ? "bg-danger" : "bg-accent-light/40"
-        )} />
+        <div
+          className={cn(
+            'absolute left-0 top-0 bottom-0 w-[3px]',
+            isUser ? 'bg-accent' : hasError ? 'bg-danger' : 'bg-accent/40'
+          )}
+        />
 
-        <div className="flex items-center gap-3 mb-4 pl-1">
+        {/* Header: avatar + role + timestamp (compact) */}
+        <div className="flex items-center gap-2 mb-2 pl-1">
           <div
             className={cn(
-              "w-8 h-8 rounded-lg flex items-center justify-center border",
-              isUser 
-                ? "bg-accent/20 border-accent/40 text-accent-light" 
-                : hasError 
-                ? "bg-danger/20 border-danger/40 text-danger" 
-                : "bg-white/5 border-white/10 text-accent-light"
+              'w-6 h-6 rounded-button flex items-center justify-center border',
+              isUser
+                ? 'bg-accent/20 border-accent/40 text-accent'
+                : hasError
+                ? 'bg-danger/20 border-danger/40 text-danger'
+                : 'bg-white/5 text-accent'
             )}
+            style={
+              !isUser && !hasError
+                ? { borderColor: 'rgba(255,255,255,0.08)' }
+                : undefined
+            }
           >
-            {isUser ? <User className="w-4.5 h-4.5" /> : hasError ? <AlertTriangle className="w-4.5 h-4.5" /> : <Cpu className="w-4.5 h-4.5" />}
+            {isUser ? (
+              <User className="w-3.5 h-3.5" />
+            ) : hasError ? (
+              <AlertTriangle className="w-3.5 h-3.5" />
+            ) : (
+              <Cpu className="w-3.5 h-3.5" />
+            )}
           </div>
-          
-          <div className="flex flex-col">
-            <span className="text-[10px] font-heading font-bold tracking-widest uppercase text-white">
+
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-[9px] font-heading font-bold tracking-widest uppercase text-text whitespace-nowrap">
               {isUser ? 'OPERATOR' : hasError ? 'LINK FAILURE' : 'SYSTEM NODE'}
             </span>
-            <span className="text-[9px] font-label font-medium tracking-wider text-text-muted">
+            <span className="text-[8px] font-label font-medium tracking-wider text-text-muted uppercase whitespace-nowrap">
               {formatTime(message.created_at)}
             </span>
           </div>
- 
+
           {!isUser && !hasError && (
-            <div className="ml-auto flex items-center space-x-2">
-              <span className="flex items-center space-x-1 px-2 py-0.5 rounded-md border border-accent/20 bg-accent/10 text-[9px] font-bold text-accent-light tracking-wider uppercase">
-                <Server className="w-3 h-3" />
-                <span>CLAUDE-3</span>
-              </span>
-              <span className="flex items-center space-x-1 px-2 py-0.5 rounded-md border border-success/20 bg-success/10 text-[9px] font-bold text-success tracking-wider uppercase">
-                <CheckCircle2 className="w-3 h-3" />
-                <span>ACTIVE-AGENT</span>
+            <div className="ml-auto flex items-center gap-1.5">
+              <span className="px-1.5 py-0.5 rounded-button text-[7px] font-bold uppercase tracking-widest bg-accent/10 text-accent-light border border-accent/20 flex items-center gap-0.5">
+                <CheckCircle2 className="w-2 h-2" />
+                ACTIVE
               </span>
             </div>
           )}
         </div>
 
-        <div className="text-sm leading-relaxed prose prose-invert max-w-none pl-1 prose-p:leading-relaxed prose-pre:bg-[#090b10] prose-pre:border prose-pre:border-white/5 prose-pre:rounded-xl">
+        {/* Content */}
+        <div className="message-body prose prose-invert max-w-none pl-1 prose-p:leading-relaxed prose-pre:bg-background prose-pre:border prose-pre:border-white/5 prose-pre:rounded-card">
           {isThinking ? (
             <ThinkingBubble />
-          ) : message.status === 'generating' ? (
+          ) : isStreaming ? (
             <StreamingBubble content={message.content} />
           ) : (
             <ReactMarkdown>{message.content}</ReactMarkdown>
           )}
         </div>
 
+        {/* Status indicator beneath assistant responses */}
+        {!isUser && (
+          <div className="pl-1">
+            <StatusIndicator status={message.status} hasError={hasError} />
+          </div>
+        )}
+
+        {/* Error actions */}
         {hasError && (
-          <div className="flex gap-3 mt-4 pt-4 border-t border-white/5">
+          <div className="flex gap-2 mt-2 pt-2 border-t border-white/5">
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
+              transition={springs.instant}
               onClick={onRetry}
-              className="px-4 py-2 bg-danger/20 text-red-200 border border-danger/30 text-[10px] font-bold tracking-widest uppercase rounded-xl hover:bg-danger/35 transition-all"
+              className="px-3 py-1.5 bg-danger/20 text-text border border-danger/30 text-[9px] font-bold tracking-widest uppercase rounded-button hover:bg-danger/35 transition-all duration-normal focus-visible:ring-2 focus-visible:ring-danger/30 focus-visible:outline-none"
             >
               Re-establish sequence
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
+              transition={springs.instant}
               onClick={onCancel}
-              className="px-4 py-2 bg-surface border border-white/5 text-text-muted text-[10px] font-bold tracking-widest uppercase rounded-xl hover:bg-elevated transition-all"
+              className="px-3 py-1.5 bg-surface border text-text-muted text-[9px] font-bold tracking-widest uppercase rounded-button hover:bg-surface-elevated transition-all duration-normal focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
+              style={{ borderColor: 'rgba(255,255,255,0.08)' }}
             >
               Abort Link
             </motion.button>
           </div>
         )}
 
-        {message.tokens_used && !hasError && (
-          <div className="flex items-center space-x-4 mt-4 pt-4 border-t border-white/5 text-[9px] font-bold tracking-widest text-text-muted">
-            <span className="flex items-center space-x-1">
-              <Zap className="w-3 h-3 text-accent" />
-              <span>{message.tokens_used} TOKENS</span>
-            </span>
-            <span className="flex items-center space-x-1">
-              <Clock className="w-3 h-3 text-warning" />
-              <span>1.2s LATENCY</span>
-            </span>
+        {/* Model info pills — provider icon, model, tokens, gen time */}
+        {!isUser && !hasError && !isThinking && (message.model || message.provider || message.tokens_used) && (
+          <div className="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-white/5 flex-wrap">
+            {message.provider && (
+              <InfoPill
+                icon={<ProviderIcon name={message.provider} className="w-2.5 h-2.5 text-primary-light" />}
+                label={message.provider}
+                tone="primary"
+              />
+            )}
+            {message.model && (
+              <InfoPill
+                icon={<Activity className="w-2.5 h-2.5 text-accent" />}
+                label={message.model}
+                tone="accent"
+              />
+            )}
+            {message.tokens_used != null && message.tokens_used > 0 && (
+              <InfoPill
+                icon={<Zap className="w-2.5 h-2.5 text-warning" />}
+                label={`${message.tokens_used} tok`}
+                tone="warning"
+              />
+            )}
+            {!isStreaming && message.status === 'completed' && (
+              <InfoPill
+                icon={<Clock className="w-2.5 h-2.5 text-text-muted" />}
+                label={formatTime(message.created_at)}
+                tone="muted"
+              />
+            )}
           </div>
         )}
-      </div>
+      </motion.div>
     </motion.div>
   );
 });
+
+/** Compact info pill shown beneath assistant messages. */
+const InfoPill = memo(function InfoPill({
+  icon,
+  label,
+  tone,
+}: {
+  icon: React.ReactNode
+  label: string
+  tone: 'accent' | 'primary' | 'warning' | 'muted'
+}) {
+  const toneClass = {
+    accent: 'bg-accent/10 text-accent-light border-accent/20',
+    primary: 'bg-primary/10 text-primary-light border-primary/20',
+    warning: 'bg-warning/10 text-warning border-warning/20',
+    muted: 'bg-white/[0.03] text-text-muted border-white/10',
+  }[tone]
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-button text-[8px] font-bold uppercase tracking-widest border whitespace-nowrap',
+        toneClass
+      )}
+    >
+      {icon}
+      <span className="truncate max-w-[120px]">{label}</span>
+    </span>
+  )
+})

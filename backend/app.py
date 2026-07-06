@@ -12,6 +12,33 @@ logger = logging.getLogger("app")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
+    # --- RUNTIME VERIFICATION (diagnostic only) ---
+    import sys as _sys
+    import inspect as _inspect
+    print("=" * 80)
+    print("BACKEND STARTUP")
+    print("Python executable:", _sys.executable)
+    print("Current working directory:", __import__("os").getcwd())
+    print("sys.path:")
+    for _p in _sys.path:
+        print("  ", _p)
+    try:
+        import services.execution_manager as _em
+        import agents.manager as _am
+        import api.chat as _chat
+        print("Loaded module paths:")
+        print("  services.execution_manager ->", _inspect.getfile(_em))
+        print("  agents.manager              ->", _inspect.getfile(_am))
+        print("  api.chat                    ->", _inspect.getfile(_chat))
+        from services.execution_manager import AgentExecutionManager
+        from agents.manager import AgentManager
+        print("Class file paths:")
+        print("  AgentExecutionManager ->", _inspect.getfile(AgentExecutionManager))
+        print("  AgentManager          ->", _inspect.getfile(AgentManager))
+    except Exception as _e:
+        print("STARTUP VERIFICATION FAILED:", _e)
+    print("=" * 80)
+    # --- END RUNTIME VERIFICATION ---
     # Startup
     init_db()
     yield

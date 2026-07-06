@@ -1,20 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
-from typing import List
-from database import get_db
-from schemas.chat import (
-    ChatRequest,
-    MessageResponse,
-    ConversationCreate,
-    ConversationUpdate,
-    ConversationResponse,
-)
-from services.chat_service import ChatService
-from services.conversation_service import ConversationService
-from services.message_service import MessageService
 import json
 import logging
+from typing import List
+
+from database import get_db
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
+from schemas.chat import ChatRequest, ConversationCreate, ConversationResponse, ConversationUpdate, MessageResponse
+from services.chat_service import ChatService
+from services.conversation_service import ConversationService
+from services.execution_manager import AgentExecutionManager
+from services.message_service import MessageService
+from sqlalchemy.orm import Session
 
 router = APIRouter()
 logger = logging.getLogger("chat")
@@ -39,7 +35,9 @@ async def stream_generator(
     logger.info("stream_generator() started")
     logger.info(
         "[DEBUG] About to call runtime.stream messages_count=%d provider_id=%s model=%s",
-        len(messages), provider_id, model,
+        len(messages),
+        provider_id,
+        model,
     )
     try:
         async for chunk in runtime.stream(
@@ -118,7 +116,9 @@ async def update_conversation(
     service: ConversationService = Depends(get_conversation_service),
 ):
     """Update a conversation."""
-    conversation = service.update(conversation_id, conversation_in.dict(exclude_unset=True))
+    conversation = service.update(
+        conversation_id, conversation_in.dict(exclude_unset=True)
+    )
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return conversation
@@ -136,7 +136,9 @@ async def delete_conversation(
     return None
 
 
-@router.get("/conversations/{conversation_id}/messages", response_model=List[MessageResponse])
+@router.get(
+    "/conversations/{conversation_id}/messages", response_model=List[MessageResponse]
+)
 async def get_messages(
     conversation_id: int,
     skip: int = 0,
@@ -155,23 +157,66 @@ async def send_message(
     db: Session = Depends(get_db),
 ):
     """Send a message and get AI response."""
-    from services.ai_runtime import AIRuntime
+    # --- RUNTIME VERIFICATION (diagnostic only) ---
+    import inspect as _inspect
+    print("=" * 80)
+    print("CHAT ROUTE EXECUTING")
+    print("__file__ =", __file__)
+    print("send_message source (first 500 chars):")
+    print(_inspect.getsource(send_message)[:500])
+    # --- END RUNTIME VERIFICATION ---
     from agents.manager import AgentManager
-    logger.info("POST /chat entered conversation_id=%s provider_id=%s model=%s stream=%s agent_id=%s", request.conversation_id, request.provider_id, request.model, request.stream, request.agent_id)
+    from services.ai_runtime import AIRuntime
+
+    logger.info(
+        "POST /chat entered conversation_id=%s provider_id=%s model=%s stream=%s agent_id=%s",
+        request.conversation_id,
+        request.provider_id,
+        request.model,
+        request.stream,
+        request.agent_id,
+    )
     try:
         payload = request.model_dump()
     except Exception as e:
         logger.error("[DEBUG] request.model_dump() FAILED: %s", str(e))
-        raise HTTPException(status_code=400, detail=f"Invalid request payload: {str(e)}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid request payload: {str(e)}"
+        )
     logger.info("[DEBUG] Full request payload: %s", payload)
 
     # Log each required field explicitly
-    logger.info("[DEBUG] Field check: conversation_id=%s (type=%s)", request.conversation_id, type(request.conversation_id).__name__)
-    logger.info("[DEBUG] Field check: content=%s (type=%s, len=%d)", request.content[:50] if request.content else None, type(request.content).__name__, len(request.content or ""))
-    logger.info("[DEBUG] Field check: provider_id=%s (type=%s)", request.provider_id, type(request.provider_id).__name__)
-    logger.info("[DEBUG] Field check: model=%s (type=%s)", request.model, type(request.model).__name__)
-    logger.info("[DEBUG] Field check: stream=%s (type=%s)", request.stream, type(request.stream).__name__)
-    logger.info("[DEBUG] Field check: agent_id=%s (type=%s)", request.agent_id, type(request.agent_id).__name__)
+    logger.info(
+        "[DEBUG] Field check: conversation_id=%s (type=%s)",
+        request.conversation_id,
+        type(request.conversation_id).__name__,
+    )
+    logger.info(
+        "[DEBUG] Field check: content=%s (type=%s, len=%d)",
+        request.content[:50] if request.content else None,
+        type(request.content).__name__,
+        len(request.content or ""),
+    )
+    logger.info(
+        "[DEBUG] Field check: provider_id=%s (type=%s)",
+        request.provider_id,
+        type(request.provider_id).__name__,
+    )
+    logger.info(
+        "[DEBUG] Field check: model=%s (type=%s)",
+        request.model,
+        type(request.model).__name__,
+    )
+    logger.info(
+        "[DEBUG] Field check: stream=%s (type=%s)",
+        request.stream,
+        type(request.stream).__name__,
+    )
+    logger.info(
+        "[DEBUG] Field check: agent_id=%s (type=%s)",
+        request.agent_id,
+        type(request.agent_id).__name__,
+    )
 
     eff_provider_id = request.provider_id
     eff_model = request.model
@@ -190,7 +235,9 @@ async def send_message(
     logger.info("[DEBUG] Effective provider_id=%s model=%s", eff_provider_id, eff_model)
 
     if eff_provider_id is None:
-        logger.error("[DEBUG] VALIDATION FAILED: Provider ID is required (eff_provider_id is None)")
+        logger.error(
+            "[DEBUG] VALIDATION FAILED: Provider ID is required (eff_provider_id is None)"
+        )
         raise HTTPException(status_code=400, detail="Provider ID is required")
     if eff_model is None:
         logger.error("[DEBUG] VALIDATION FAILED: Model is required (eff_model is None)")
@@ -204,6 +251,7 @@ async def send_message(
             logger.error("[DEBUG] validate_execution FAILED: %s", str(e))
             # Detailed diagnostic logging
             from models.provider import Provider
+
             provider = db.query(Provider).filter(Provider.id == eff_provider_id).first()
             available_models = []
             if provider:
@@ -211,81 +259,182 @@ async def send_message(
                     available_models = [m.name for m in provider.models]
                 except Exception:
                     available_models = []
-            logger.error("[DEBUG] Validation detail: Provider=%s (id=%s) Available models=%s Requested model=%s",
-                        provider.name if provider else "NOT_FOUND",
-                        eff_provider_id,
-                        available_models,
-                        eff_model)
+            logger.error(
+                "[DEBUG] Validation detail: Provider=%s (id=%s) Available models=%s Requested model=%s",
+                provider.name if provider else "NOT_FOUND",
+                eff_provider_id,
+                available_models,
+                eff_model,
+            )
             raise HTTPException(status_code=400, detail=str(e))
 
     try:
-        # First save the user message via service (this could be refactored later)
-        # But we need ChatService to not execute it if we want custom agent logic.
-        # Wait, ChatService.send_message currently handles saving AND executing non-streaming.
-        # We can just intercept the messages array in the AIRuntime stream or non-stream?
-        # Actually, if we use ChatService.send_message, it returns the messages.
-        
-        logger.info("[DEBUG] Calling service.send_message conversation_id=%s provider_id=%s model=%s stream=%s", request.conversation_id, eff_provider_id, eff_model, request.stream)
-        result = await service.send_message(
-            conversation_id=request.conversation_id,
-            content=request.content,
-            provider_id=eff_provider_id,
-            model=eff_model,
-            stream=request.stream,
-        )
-        logger.info("[DEBUG] service.send_message completed result_keys=%s stream=%s", list(result.keys()) if isinstance(result, dict) else type(result).__name__, bool(result.get("stream") if isinstance(result, dict) else None))
-
-        messages = result.get("messages", [])
-        logger.info("[DEBUG] Messages from service.send_message count=%d", len(messages))
-
-        if manager and request.agent_id:
-            # Apply agent system prompt if any
-            logger.info("[DEBUG] Applying agent system prompt agent_id=%s", request.agent_id)
-            messages = manager.build_prompt_for_agent(request.agent_id, messages)
-            logger.info("[DEBUG] After agent prompt messages count=%d", len(messages))
-
-        if request.stream and result.get("stream"):
-            logger.info("entering streaming response path via AI Runtime")
-            runtime = AIRuntime(db)
-            logger.info("[DEBUG] AIRuntime instantiated")
-
-            logger.info("returning StreamingResponse")
-            return StreamingResponse(
-                stream_generator(
-                    runtime,
-                    messages,
-                    eff_provider_id,
-                    eff_model,
-                    request.conversation_id,
-                ),
-                media_type="text/event-stream",
+        if request.agent_id:
+            # Delegate to AgentExecutionManager for full agent execution lifecycle
+            logger.info(
+                "[DEBUG] Delegating to AgentExecutionManager agent_id=%s",
+                request.agent_id,
             )
-        else:
-            if manager and request.agent_id:
-                # Need to run non-streaming ourselves with the agent system prompt
-                logger.info("running non-streaming with agent prompt")
-                runtime = AIRuntime(db)
-                logger.info("[DEBUG] About to call runtime.chat messages_count=%d provider_id=%s model=%s", len(messages), eff_provider_id, eff_model)
-                response_text = await runtime.chat(messages=messages, provider_id=eff_provider_id, model=eff_model)
-                logger.info("[DEBUG] runtime.chat completed response_length=%d", len(response_text))
-                assistant_message = service._save_assistant_message(request.conversation_id, response_text, provider=str(eff_provider_id), model=eff_model)
+            execution_manager = AgentExecutionManager(db)
+            execution = execution_manager.create_execution(
+                agent_id=request.agent_id,
+                conversation_id=request.conversation_id,
+                input_messages=[{"role": "user", "content": request.content}],
+            )
+            execution = execution_manager.submit(execution.execution_id)
+            logger.info(
+                "[DEBUG] Execution created execution_id=%s status=%s",
+                execution.execution_id,
+                execution.status,
+            )
+
+            if request.stream:
+                # Return streaming response with execution tracking
+                async def execution_stream_generator():
+                    try:
+                        async for chunk in execution_manager.execute_stream(
+                            execution.execution_id,
+                            provider_id_override=eff_provider_id,
+                            model_override=eff_model,
+                        ):
+                            yield f"data: {json.dumps({'content': chunk, 'execution_id': execution.execution_id})}\n\n"
+                    except Exception as e:
+                        logger.exception(
+                            "streaming error in execution_stream_generator"
+                        )
+                        yield sse_error(str(e))
+
+                return StreamingResponse(
+                    execution_stream_generator(),
+                    media_type="text/event-stream",
+                )
+            else:
+                # Non-streaming execution
+                result = await execution_manager.execute(
+                    execution.execution_id,
+                    provider_id_override=eff_provider_id,
+                    model_override=eff_model,
+                )
+                logger.info(
+                    "[DEBUG] execution_manager.execute completed execution_id=%s",
+                    execution.execution_id,
+                )
                 return {
                     "stream": False,
                     "conversation_id": request.conversation_id,
+                    "execution_id": execution.execution_id,
                     "message": {
-                        "id": assistant_message.id,
-                        "role": assistant_message.role,
-                        "content": assistant_message.content,
-                        "provider": assistant_message.provider,
-                        "model": assistant_message.model,
-                        "tokens_used": assistant_message.tokens_used,
-                        "created_at": assistant_message.created_at.isoformat() if assistant_message.created_at else None,
+                        "id": result.get("message_id"),
+                        "role": "assistant",
+                        "content": result.get("response", ""),
+                        "provider": str(eff_provider_id),
+                        "model": eff_model,
+                        "tokens_used": result.get("tokens_used"),
+                        "created_at": result.get("completed_at"),
                     },
                 }
+        else:
+            # Original path: no agent_id, preserve exact backward compatibility
+            logger.info(
+                "[DEBUG] Calling service.send_message conversation_id=%s provider_id=%s model=%s stream=%s",
+                request.conversation_id,
+                eff_provider_id,
+                eff_model,
+                request.stream,
+            )
+            result = await service.send_message(
+                conversation_id=request.conversation_id,
+                content=request.content,
+                provider_id=eff_provider_id,
+                model=eff_model,
+                stream=request.stream,
+            )
+            logger.info(
+                "[DEBUG] service.send_message completed result_keys=%s stream=%s",
+                (
+                    list(result.keys())
+                    if isinstance(result, dict)
+                    else type(result).__name__
+                ),
+                bool(result.get("stream") if isinstance(result, dict) else None),
+            )
+
+            messages = result.get("messages", [])
+            logger.info(
+                "[DEBUG] Messages from service.send_message count=%d", len(messages)
+            )
+
+            if manager and request.agent_id:
+                # Apply agent system prompt if any
+                logger.info(
+                    "[DEBUG] Applying agent system prompt agent_id=%s", request.agent_id
+                )
+                messages = manager.build_prompt_for_agent(request.agent_id, messages)
+                logger.info(
+                    "[DEBUG] After agent prompt messages count=%d", len(messages)
+                )
+
+            if request.stream and result.get("stream"):
+                logger.info("entering streaming response path via AI Runtime")
+                runtime = AIRuntime(db)
+                logger.info("[DEBUG] AIRuntime instantiated")
+
+                logger.info("returning StreamingResponse")
+                return StreamingResponse(
+                    stream_generator(
+                        runtime,
+                        messages,
+                        eff_provider_id,
+                        eff_model,
+                        request.conversation_id,
+                    ),
+                    media_type="text/event-stream",
+                )
             else:
-                logger.info("returning non-streaming result")
-                return result
-            
+                if manager and request.agent_id:
+                    # Need to run non-streaming ourselves with the agent system prompt
+                    logger.info("running non-streaming with agent prompt")
+                    runtime = AIRuntime(db)
+                    logger.info(
+                        "[DEBUG] About to call runtime.chat messages_count=%d provider_id=%s model=%s",
+                        len(messages),
+                        eff_provider_id,
+                        eff_model,
+                    )
+                    response_text = await runtime.chat(
+                        messages=messages, provider_id=eff_provider_id, model=eff_model
+                    )
+                    logger.info(
+                        "[DEBUG] runtime.chat completed response_length=%d",
+                        len(response_text),
+                    )
+                    assistant_message = service._save_assistant_message(
+                        request.conversation_id,
+                        response_text,
+                        provider=str(eff_provider_id),
+                        model=eff_model,
+                    )
+                    return {
+                        "stream": False,
+                        "conversation_id": request.conversation_id,
+                        "message": {
+                            "id": assistant_message.id,
+                            "role": assistant_message.role,
+                            "content": assistant_message.content,
+                            "provider": assistant_message.provider,
+                            "model": assistant_message.model,
+                            "tokens_used": assistant_message.tokens_used,
+                            "created_at": (
+                                assistant_message.created_at.isoformat()
+                                if assistant_message.created_at
+                                else None
+                            ),
+                        },
+                    }
+                else:
+                    logger.info("returning non-streaming result")
+                    return result
+
     except ValueError as e:
         logger.exception("value error in send_message")
         raise HTTPException(status_code=400, detail=str(e))

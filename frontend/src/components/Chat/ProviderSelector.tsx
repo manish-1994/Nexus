@@ -23,7 +23,7 @@ export function ProviderSelector({
         <button
           onClick={onDiscoverModels}
           disabled={!selectedProviderId || isLoading}
-          className="px-3 py-1 bg-accent/20 border border-accent/40 text-accent-light text-[9px] font-bold tracking-widest uppercase rounded-lg hover:bg-accent/30 disabled:bg-white/5 disabled:text-text-muted/40 disabled:cursor-not-allowed transition-all"
+          className="px-3 py-1 bg-accent/20 border border-accent/40 text-accent-light text-[9px] font-bold tracking-widest uppercase rounded-sm hover:bg-accent/30 disabled:bg-white/5 disabled:text-text-muted/40 disabled:cursor-not-allowed transition-all"
         >
           {isLoading ? 'Syncing...' : 'Sync Models'}
         </button>
@@ -32,7 +32,7 @@ export function ProviderSelector({
         <select
           value={selectedProviderId || ''}
           onChange={(e) => onProviderChange(Number(e.target.value))}
-          className="w-full bg-elevated/40 text-text border border-white/10 rounded-xl px-3 py-2.5 text-xs font-heading tracking-wider focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent-light/50 transition-all appearance-none cursor-pointer"
+          className="w-full bg-elevated/40 text-text border border-white/10 rounded-sm px-3 py-2.5 text-xs font-heading tracking-wider focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent-light/50 transition-all appearance-none cursor-pointer"
         >
           <option value="" disabled className="bg-surface">Select a provider</option>
           {providers.map((provider) => (

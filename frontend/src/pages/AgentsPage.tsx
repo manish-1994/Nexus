@@ -75,7 +75,7 @@ export default function AgentsPage() {
           <p className="text-text-muted mt-2 text-sm tracking-wide">Manage autonomous agent configurations</p>
         </div>
         <button 
-          className="bg-accent hover:bg-accent-light text-white px-6 py-2.5 rounded-xl font-bold tracking-widest uppercase text-[11px] shadow-[0_0_15px_rgba(59,130,246,0.5)] transition-all"
+          className="bg-accent hover:bg-accent-light text-white px-6 py-2.5 rounded-button font-bold tracking-widest uppercase text-[11px] shadow-glow-sm transition-all"
           onClick={() => setShowCreateWizard(true)}
         >
           Deploy Agent
@@ -105,13 +105,13 @@ export default function AgentsPage() {
           ))}
         </div>
       ) : agents.length === 0 ? (
-        <div className="text-center py-24 glass-panel rounded-3xl border border-white/5">
+        <div className="text-center py-24 glass-surface rounded-card border border-white/5">
           <Bot className="w-20 h-20 text-text-muted/30 mx-auto mb-6 drop-shadow-md" />
           <h3 className="text-xl font-bold text-text tracking-widest uppercase mb-2">No Active Agents</h3>
           <p className="text-text-muted mb-8 tracking-wide">Initialize a new cognitive module to begin.</p>
           <button
             onClick={() => setShowCreateWizard(true)}
-            className="px-6 py-2.5 bg-accent/20 border border-accent/40 text-accent-light font-bold tracking-widest uppercase text-[11px] rounded-xl hover:bg-accent/30 hover:shadow-glow transition-all"
+            className="px-6 py-2.5 bg-accent/20 border border-accent/40 text-accent-light font-bold tracking-widest uppercase text-[11px] rounded-button hover:bg-accent/30 hover:shadow-glow transition-all"
           >
             Deploy Module
           </button>
@@ -125,13 +125,13 @@ export default function AgentsPage() {
             onClick={() => setSelectedAgent(agent)}
           >
             <div className="flex items-center space-x-4 mb-5">
-              <div className="w-12 h-12 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center shadow-[inset_0_0_15px_rgba(59,130,246,0.1)]">
+              <div className="w-12 h-12 rounded-button bg-accent/10 border border-accent/20 flex items-center justify-center shadow-[inset_0_0_15px_rgba(59,130,246,0.1)]">
                 <Bot className="w-6 h-6 text-accent drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
               </div>
               <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-base tracking-wide text-text truncate drop-shadow-md">{agent.name}</h3>
                 <div className="flex items-center space-x-2 mt-1">
-                  <span className={`flex items-center space-x-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${agent.enabled ? 'bg-success/10 text-success border border-success/20' : 'bg-white/5 text-text-muted border border-white/10'}`}>
+                  <span className={`flex items-center space-x-1 px-1.5 py-0.5 rounded-button text-[9px] font-bold uppercase tracking-wider ${agent.enabled ? 'bg-success/10 text-success border border-success/20' : 'bg-white/5 text-text-muted border border-white/10'}`}>
                     {agent.enabled ? <Activity className="w-3 h-3" /> : null}
                     <span>{agent.enabled ? 'Online' : 'Offline'}</span>
                   </span>
@@ -141,51 +141,51 @@ export default function AgentsPage() {
                 </div>
               </div>
             </div>
-      
+       
             <p className="text-text-muted text-xs mb-5 h-8 overflow-hidden line-clamp-2 leading-relaxed tracking-wide">
               {agent.description || 'No description provided.'}
             </p>
-      
+       
             <div className="flex gap-2 flex-wrap mb-6 mt-auto">
               {getAgentModelName(agent, providers) && (
-                <span className="flex items-center space-x-1 px-2 py-1 text-[9px] font-bold uppercase tracking-wider bg-white/5 text-text border border-white/10 rounded">
+                <span className="flex items-center space-x-1 px-2 py-1 text-[9px] font-bold uppercase tracking-wider bg-white/5 text-text border border-white/10 rounded-button">
                   <Cpu className="w-3 h-3 text-text-muted" />
                   <span>{getAgentModelName(agent, providers)}</span>
                 </span>
               )}
               {agent.streaming && (
-                <span className="flex items-center space-x-1 px-2 py-1 text-[9px] font-bold uppercase tracking-wider bg-secondary/10 text-secondary border border-secondary/20 rounded">
+                <span className="flex items-center space-x-1 px-2 py-1 text-[9px] font-bold uppercase tracking-wider bg-secondary/10 text-secondary border border-secondary/20 rounded-button">
                   <Zap className="w-3 h-3" />
                   <span>Stream</span>
                 </span>
               )}
               {agent.memory_enabled && (
-                <span className="flex items-center space-x-1 px-2 py-1 text-[9px] font-bold uppercase tracking-wider bg-accent/10 text-accent border border-accent/20 rounded">
+                <span className="flex items-center space-x-1 px-2 py-1 text-[9px] font-bold uppercase tracking-wider bg-accent/10 text-accent border border-accent/20 rounded-button">
                   <CheckCircle2 className="w-3 h-3" />
                   <span>Memory</span>
                 </span>
               )}
             </div>
-      
+       
             <div className="flex justify-between items-center pt-4 border-t border-white/5 opacity-60 group-hover:opacity-100 transition-opacity">
               <div className="flex space-x-1">
                 <button
                   onClick={(e) => { e.stopPropagation(); setEditingAgent(agent); }}
-                  className="p-2 text-text-muted hover:text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                  className="p-2 text-text-muted hover:text-accent hover:bg-accent/10 rounded-button transition-colors"
                   title="Configure"
                 >
                   <Edit2 className="w-4 h-4" />
                 </button>
                 <button
                   onClick={(e) => handleDuplicate(e, agent)}
-                  className="p-2 text-text-muted hover:text-success hover:bg-success/10 rounded-lg transition-colors"
+                  className="p-2 text-text-muted hover:text-success hover:bg-success/10 rounded-button transition-colors"
                   title="Duplicate"
                 >
                   <Copy className="w-4 h-4" />
                 </button>
                 <button
                   onClick={(e) => handleDelete(e, agent.id)}
-                  className="p-2 text-text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                  className="p-2 text-text-muted hover:text-danger hover:bg-danger/10 rounded-button transition-colors"
                   title="Terminate"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -193,7 +193,7 @@ export default function AgentsPage() {
               </div>
               <button
                 onClick={(e) => { e.stopPropagation(); setTestingAgent(agent) }}
-                className="flex items-center space-x-1 px-3 py-1.5 text-[10px] uppercase tracking-widest font-bold bg-white/5 border border-white/10 rounded-lg hover:bg-accent hover:border-accent hover:text-white transition-all hover:shadow-glow text-text-muted"
+                className="flex items-center space-x-1 px-3 py-1.5 text-[10px] uppercase tracking-widest font-bold bg-white/5 border border-white/10 rounded-button hover:bg-accent hover:border-accent hover:text-white transition-all hover:shadow-glow text-text-muted"
               >
                 <Play className="w-3 h-3" />
                 <span>Test</span>

@@ -100,7 +100,7 @@ function ConversationSidebar({
         <button
           onClick={onNewConversation}
           disabled={isLoading}
-          className="w-full bg-accent hover:bg-accent-light disabled:bg-white/5 disabled:text-text-muted/40 disabled:cursor-not-allowed text-white rounded-xl py-3 text-xs font-bold tracking-widest uppercase transition-all shadow-[0_0_15px_rgba(59,130,246,0.3)] flex items-center justify-center space-x-2"
+          className="w-full bg-accent hover:bg-accent-light disabled:bg-white/5 disabled:text-text-muted/40 disabled:cursor-not-allowed text-white rounded-button py-3 text-xs font-bold tracking-widest uppercase transition-all shadow-glow-sm flex items-center justify-center space-x-2"
         >
           <Plus className="w-4 h-4" />
           <span>{isLoading ? 'Creating...' : 'New Sequence'}</span>
@@ -115,9 +115,10 @@ function ConversationSidebar({
             <input
               type="text"
               placeholder="Query logs..."
+              aria-label="Search conversations"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full bg-elevated/40 text-text placeholder-text-muted/40 text-xs font-heading tracking-wider rounded-xl pl-9 pr-4 py-2.5 outline-none border border-white/10 focus:ring-1 focus:ring-accent/30 focus:border-accent-light/50 transition-all"
+              className="w-full bg-elevated/40 text-text placeholder-text-muted/70 text-xs font-heading tracking-wider rounded-input pl-9 pr-4 py-2.5 outline-none border border-white/10 focus:ring-1 focus:ring-accent/30 focus:border-accent-light/50 transition-all"
             />
           </div>
         )}
@@ -127,7 +128,8 @@ function ConversationSidebar({
             <select
               value={sortBy}
               onChange={(e) => onSortChange(e.target.value as 'newest' | 'oldest')}
-              className="w-full bg-elevated/40 text-text text-xs font-heading tracking-widest uppercase rounded-xl pl-9 pr-4 py-2.5 outline-none border border-white/10 focus:ring-1 focus:ring-accent/30 focus:border-accent-light/50 appearance-none transition-all"
+              aria-label="Sort conversations"
+              className="w-full bg-elevated/40 text-text text-xs font-heading tracking-widest uppercase rounded-input pl-9 pr-4 py-2.5 outline-none border border-white/10 focus:ring-1 focus:ring-accent/30 focus:border-accent-light/50 appearance-none transition-all"
             >
               <option value="newest" className="bg-surface">Newest First</option>
               <option value="oldest" className="bg-surface">Oldest First</option>
@@ -157,9 +159,19 @@ function ConversationSidebar({
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className={`group rounded-xl p-3 cursor-pointer border transition-all ${
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Conversation: ${conversation.title}`}
+                    aria-current={isSelected ? 'true' : undefined}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        onSelect(conversation.id)
+                      }
+                    }}
+                    className={`group rounded-card p-3 cursor-pointer border transition-all focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none ${
                       isSelected
-                        ? 'bg-accent/15 border-accent/40 shadow-[0_0_15px_rgba(59,130,246,0.15)]'
+                        ? 'bg-accent/15 border-accent/40 shadow-glow-sm'
                         : 'bg-white/5 border-transparent hover:bg-white/10 hover:border-white/10'
                     }`}
                   >
@@ -171,7 +183,7 @@ function ConversationSidebar({
                         onBlur={() => handleSaveRename(conversation.id)}
                         onKeyDown={(e) => handleKeyDown(e, conversation.id)}
                         autoFocus
-                        className="w-full bg-elevated/80 text-text rounded-lg px-3 py-1.5 text-xs border border-accent/40 outline-none"
+                        className="w-full bg-elevated/80 text-text rounded-input px-3 py-1.5 text-xs border border-accent/40 outline-none"
                       />
                     ) : (
                       <div
@@ -193,12 +205,12 @@ function ConversationSidebar({
                           {/* Provider and Model */}
                           <div className="flex items-center space-x-1.5 mt-2 flex-wrap gap-y-1">
                             {conversation.provider_name && (
-                              <span className="text-[9px] font-bold uppercase tracking-wider bg-white/5 text-text-muted px-1.5 py-0.5 rounded border border-white/5">
+                              <span className="text-[9px] font-bold uppercase tracking-wider bg-white/5 text-text-muted px-1.5 py-0.5 rounded-button border border-white/5">
                                 {conversation.provider_name}
                               </span>
                             )}
                             {conversation.model_name && (
-                              <span className="text-[9px] font-bold uppercase tracking-wider bg-accent/10 text-accent-light px-1.5 py-0.5 rounded border border-accent/20 max-w-[80px] truncate">
+                              <span className="text-[9px] font-bold uppercase tracking-wider bg-accent/10 text-accent-light px-1.5 py-0.5 rounded-button border border-accent/20 max-w-[80px] truncate">
                                 {conversation.model_name}
                               </span>
                             )}
@@ -215,7 +227,8 @@ function ConversationSidebar({
                               e.stopPropagation();
                               handleStartRename(conversation);
                             }}
-                            className="p-1 text-text-muted hover:text-accent transition-colors"
+                            className="p-1 text-text-muted hover:text-accent transition-colors focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none rounded-button"
+                            aria-label="Rename conversation"
                             title="Rename"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -225,7 +238,8 @@ function ConversationSidebar({
                               e.stopPropagation();
                               onDelete(conversation.id);
                             }}
-                            className="p-1 text-text-muted hover:text-danger transition-colors"
+                            className="p-1 text-text-muted hover:text-danger transition-colors focus-visible:ring-2 focus-visible:ring-danger/30 focus-visible:outline-none rounded-button"
+                            aria-label="Delete conversation"
                             title="Delete"
                           >
                             <Trash2 className="w-3.5 h-3.5" />

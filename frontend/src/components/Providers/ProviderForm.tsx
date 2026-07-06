@@ -169,33 +169,33 @@ function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 bg-white rounded-lg shadow p-6">
+    <form onSubmit={handleSubmit} className="space-y-4 glass-surface rounded-card p-lg">
       {/* Name */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Provider Name <span className="text-red-500">*</span>
+        <label className="block text-sm font-medium text-text mb-1">
+          Provider Name <span className="text-danger">*</span>
         </label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-            errors.name ? 'border-red-500' : 'border-gray-300'
+          className={`input-standard w-full ${
+            errors.name ? 'border-danger focus:ring-danger/30' : ''
           }`}
           placeholder="My Provider"
         />
-        {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+        {errors.name && <p className="text-danger text-xs mt-1">{errors.name}</p>}
       </div>
 
       {/* Type */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Provider Type <span className="text-red-500">*</span>
+        <label className="block text-sm font-medium text-text mb-1">
+          Provider Type <span className="text-danger">*</span>
         </label>
         <select
           value={type}
           onChange={(e) => setType(e.target.value as ProviderType)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+          className="input-standard w-full"
         >
           <option value="openai_compatible">OpenAI Compatible</option>
           <option value="openai">OpenAI</option>
@@ -220,40 +220,40 @@ function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
       {/* API Key */}
       {requiresApiKey && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            API Key <span className="text-red-500">*</span>
+          <label className="block text-sm font-medium text-text mb-1">
+            API Key <span className="text-danger">*</span>
           </label>
           <input
             type="password"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-              errors.api_key ? 'border-red-500' : 'border-gray-300'
+            className={`input-standard w-full ${
+              errors.api_key ? 'border-danger focus:ring-danger/30' : ''
             }`}
             placeholder="sk-..."
           />
-          {errors.api_key && <p className="text-red-500 text-xs mt-1">{errors.api_key}</p>}
+          {errors.api_key && <p className="text-danger text-xs mt-1">{errors.api_key}</p>}
         </div>
       )}
 
       {/* Base URL */}
       {showsBaseUrl && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Base URL {type === 'openai_compatible' && <span className="text-red-500">*</span>}
+          <label className="block text-sm font-medium text-text mb-1">
+            Base URL {type === 'openai_compatible' && <span className="text-danger">*</span>}
           </label>
           <input
             type="text"
             value={baseUrl}
             onChange={(e) => setBaseUrl(e.target.value)}
-            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-              errors.base_url ? 'border-red-500' : 'border-gray-300'
+            className={`input-standard w-full ${
+              errors.base_url ? 'border-danger focus:ring-danger/30' : ''
             }`}
             placeholder="http://localhost:11434 or https://api.example.com"
           />
-          {errors.base_url && <p className="text-red-500 text-xs mt-1">{errors.base_url}</p>}
+          {errors.base_url && <p className="text-danger text-xs mt-1">{errors.base_url}</p>}
           {type === 'openai_compatible' && (
-            <p className="text-gray-500 text-xs mt-1">
+            <p className="text-text-muted text-xs mt-1">
               Models will be auto-discovered from /models endpoint
             </p>
           )}
@@ -264,13 +264,13 @@ function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
       {showsBaseUrl && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="block text-sm font-medium text-gray-700">Models</label>
+            <label className="block text-sm font-medium text-text">Models</label>
             {initialData?.id && (
               <button
                 type="button"
                 onClick={handleDiscoverModels}
                 disabled={!canDiscoverModels || modelsLoading}
-                className="text-sm px-3 py-1 bg-primary-500 text-white rounded hover:bg-primary-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-sm px-3 py-1 bg-accent text-white rounded-button hover:bg-accent-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-fast focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
               >
                 {modelsLoading ? 'Discovering...' : discoveredAt ? 'Refresh Models' : 'Discover Models'}
               </button>
@@ -278,19 +278,19 @@ function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
           </div>
       
           {discoveryError && (
-            <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-md">
-              <p className="text-sm text-yellow-700">{discoveryError}</p>
+            <div className="p-2 bg-warning/10 border border-warning/30 rounded-button">
+              <p className="text-sm text-warning">{discoveryError}</p>
             </div>
           )}
       
           {discoveredAt && !discoveryError && (
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-text-muted">
               Last discovered: {new Date(discoveredAt).toLocaleString()}
             </p>
           )}
       
           {models.length > 0 && (
-            <div className="text-sm text-gray-600">
+            <div className="text-sm text-text-muted">
               {models.length} model{models.length !== 1 ? 's' : ''} discovered
             </div>
           )}
@@ -300,7 +300,7 @@ function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
       {/* Default Model */}
       {showsBaseUrl ? (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Default Model</label>
+          <label className="block text-sm font-medium text-text mb-1">Default Model</label>
           <SearchableSelect
             options={models.map((model) => ({
               value: model.name,
@@ -312,19 +312,19 @@ function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
             disabled={modelsLoading}
           />
           {models.length === 0 && !modelsLoading && (
-            <p className="text-gray-500 text-xs mt-1">
+            <p className="text-text-muted text-xs mt-1">
               Click Discover Models to load available models
             </p>
           )}
         </div>
       ) : (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Default Model</label>
+          <label className="block text-sm font-medium text-text mb-1">Default Model</label>
           <input
             type="text"
             value={defaultModel}
             onChange={(e) => setDefaultModel(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="input-standard w-full"
             placeholder="gpt-4o"
           />
         </div>
@@ -333,22 +333,22 @@ function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
       {/* Timeout & Priority */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Timeout (s)</label>
+          <label className="block text-sm font-medium text-text mb-1">Timeout (s)</label>
           <input
             type="number"
             value={timeout}
             onChange={(e) => setTimeout(Number(e.target.value))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="input-standard w-full"
             min={1}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+          <label className="block text-sm font-medium text-text mb-1">Priority</label>
           <input
             type="number"
             value={priority}
             onChange={(e) => setPriority(Number(e.target.value))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="input-standard w-full"
           />
         </div>
       </div>
@@ -356,23 +356,23 @@ function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
       {/* Max Retries & Org ID */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Max Retries</label>
+          <label className="block text-sm font-medium text-text mb-1">Max Retries</label>
           <input
             type="number"
             value={maxRetries}
             onChange={(e) => setMaxRetries(Number(e.target.value))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="input-standard w-full"
             min={0}
             max={10}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Organization ID</label>
+          <label className="block text-sm font-medium text-text mb-1">Organization ID</label>
           <input
             type="text"
             value={orgId}
             onChange={(e) => setOrgId(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="input-standard w-full"
             placeholder="org-..."
           />
         </div>
@@ -385,18 +385,18 @@ function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
           id="is_active"
           checked={isActive}
           onChange={(e) => setIsActive(e.target.checked)}
-          className="mr-2"
+          className="mr-2 accent-accent"
         />
-        <label htmlFor="is_active" className="text-sm text-gray-700">
+        <label htmlFor="is_active" className="text-sm text-text">
           Active
         </label>
       </div>
 
       {/* Server Errors */}
       {serverErrors.length > 0 && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+        <div className="p-3 bg-danger/10 border border-danger/30 rounded-button">
           {serverErrors.map((error, index) => (
-            <p key={index} className="text-sm text-red-600">{error}</p>
+            <p key={index} className="text-sm text-danger">{error}</p>
           ))}
         </div>
       )}
@@ -405,14 +405,14 @@ function ProviderForm({ onSubmit, onCancel, initialData }: ProviderFormProps) {
       <div className="flex gap-2">
         <button
           type="submit"
-          className="px-4 py-2 bg-primary-500 text-white rounded hover:bg-primary-600"
+          className="px-4 py-2 bg-accent text-white rounded-button hover:bg-accent-dark transition-colors duration-fast focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
         >
           {initialData ? 'Update' : 'Create'}
         </button>
         <button
           type="button"
           onClick={onCancel}
-          className="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+          className="px-4 py-2 bg-white/5 text-text-muted rounded-button hover:bg-white/10 transition-colors duration-fast focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
         >
           Cancel
         </button>

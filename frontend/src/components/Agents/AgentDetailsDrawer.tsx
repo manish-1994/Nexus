@@ -21,81 +21,81 @@ export function AgentDetailsDrawer({ agent, onClose }: AgentDetailsDrawerProps) 
 
   return (
     <div className="fixed inset-y-0 right-0 z-40 flex">
-      <div className="fixed inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative w-96 bg-white dark:bg-gray-800 shadow-2xl flex flex-col h-full border-l border-gray-200 dark:border-gray-700 animate-slide-in-right">
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-3">
-            <div className={`text-${agent.color || 'blue'}-600 bg-${agent.color || 'blue'}-100 p-2 rounded-full`}>
-              <i className={`icon-${agent.icon || 'bot'} text-xl`} />
+      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative w-96 glass-elevated shadow-elevated flex flex-col h-full border-l border-white/10 animate-slide-in-right rounded-dialog">
+        <div className="flex items-center justify-between p-lg border-b border-white/5">
+          <div className="flex items-center gap-md">
+            <div className="bg-accent/15 p-sm rounded-button">
+              <span className="text-accent-light text-xl">{agent.icon === 'bot' ? '🤖' : agent.icon === 'code' ? '💻' : agent.icon === 'brain' ? '🧠' : '🤖'}</span>
             </div>
-            <h2 className="text-xl font-bold">{agent.name}</h2>
+            <h2 className="text-xl font-bold text-text font-heading">{agent.name}</h2>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+          <button onClick={onClose} className="text-text-muted hover:text-text transition-colors duration-fast focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none rounded-button p-xs">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
         
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="flex-1 overflow-y-auto p-lg space-y-lg">
           <section>
-            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">General</h3>
-            <p className="text-gray-700 dark:text-gray-300 text-sm mb-2">{agent.description || 'No description provided.'}</p>
-            <div className="flex items-center gap-2 mt-2">
-              <span className={`px-2 py-1 text-xs rounded-full font-medium ${agent.enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+            <h3 className="text-sm font-bold text-text-muted uppercase tracking-wider mb-sm">General</h3>
+            <p className="text-text text-sm mb-sm">{agent.description || 'No description provided.'}</p>
+            <div className="flex items-center gap-sm mt-sm">
+              <span className={agent.enabled ? 'badge-success' : 'badge-neutral'}>
                 {agent.enabled ? 'Enabled' : 'Disabled'}
               </span>
             </div>
           </section>
 
           <section>
-            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">AI Configuration</h3>
-            <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 space-y-2 text-sm">
-              <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2">
-                <span className="text-gray-500">Provider</span>
-                <span className="font-medium text-gray-900 dark:text-gray-100">{provider?.name || 'Default'}</span>
+            <h3 className="text-sm font-bold text-text-muted uppercase tracking-wider mb-sm">AI Configuration</h3>
+            <div className="bg-surface/40 rounded-input p-md space-y-sm text-sm">
+              <div className="flex justify-between border-b border-white/5 pb-sm">
+                <span className="text-text-muted">Provider</span>
+                <span className="font-medium text-text">{provider?.name || 'Default'}</span>
               </div>
-              <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2 pt-2">
-                <span className="text-gray-500">Model</span>
-                <span className="font-medium text-gray-900 dark:text-gray-100">{getAgentModelName() || 'Default'}</span>
+              <div className="flex justify-between border-b border-white/5 pb-sm pt-sm">
+                <span className="text-text-muted">Model</span>
+                <span className="font-medium text-text">{getAgentModelName() || 'Default'}</span>
               </div>
-              <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2 pt-2">
-                <span className="text-gray-500">Temperature</span>
-                <span className="font-medium text-gray-900 dark:text-gray-100">{agent.temperature}</span>
+              <div className="flex justify-between border-b border-white/5 pb-sm pt-sm">
+                <span className="text-text-muted">Temperature</span>
+                <span className="font-medium text-text">{agent.temperature}</span>
               </div>
-              <div className="flex justify-between border-b border-gray-200 dark:border-gray-700 pb-2 pt-2">
-                <span className="text-gray-500">Top P</span>
-                <span className="font-medium text-gray-900 dark:text-gray-100">{agent.top_p}</span>
+              <div className="flex justify-between border-b border-white/5 pb-sm pt-sm">
+                <span className="text-text-muted">Top P</span>
+                <span className="font-medium text-text">{agent.top_p}</span>
               </div>
-              <div className="flex justify-between pt-2">
-                <span className="text-gray-500">Max Tokens</span>
-                <span className="font-medium text-gray-900 dark:text-gray-100">{agent.max_tokens || 'Auto'}</span>
+              <div className="flex justify-between pt-sm">
+                <span className="text-text-muted">Max Tokens</span>
+                <span className="font-medium text-text">{agent.max_tokens || 'Auto'}</span>
               </div>
             </div>
           </section>
 
           <section>
-            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Prompt</h3>
-            <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3 text-sm text-gray-700 dark:text-gray-300 font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
+            <h3 className="text-sm font-bold text-text-muted uppercase tracking-wider mb-sm">Prompt</h3>
+            <div className="bg-surface/40 rounded-input p-md text-sm text-text font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
               {agent.prompt_template || 'No system prompt defined.'}
             </div>
           </section>
           
           <section>
-            <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Capabilities & Features</h3>
-            <div className="space-y-3">
+            <h3 className="text-sm font-bold text-text-muted uppercase tracking-wider mb-sm">Capabilities & Features</h3>
+            <div className="space-y-sm">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700 dark:text-gray-300">Streaming</span>
-                <span className={`px-2 py-0.5 text-xs rounded-md ${agent.streaming ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'}`}>{agent.streaming ? 'Yes' : 'No'}</span>
+                <span className="text-sm text-text">Streaming</span>
+                <span className={agent.streaming ? 'badge-accent' : 'badge-neutral'}>{agent.streaming ? 'Yes' : 'No'}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700 dark:text-gray-300">Memory</span>
-                <span className={`px-2 py-0.5 text-xs rounded-md ${agent.memory_enabled ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600'}`}>{agent.memory_enabled ? 'Yes' : 'No'}</span>
+                <span className="text-sm text-text">Memory</span>
+                <span className={agent.memory_enabled ? 'badge-accent' : 'badge-neutral'}>{agent.memory_enabled ? 'Yes' : 'No'}</span>
               </div>
               {agent.capabilities && (
-                <div className="mt-2">
-                  <span className="text-xs text-gray-500 block mb-1">Tags</span>
-                  <div className="flex flex-wrap gap-1">
+                <div className="mt-sm">
+                  <span className="text-xs text-text-muted block mb-xs">Tags</span>
+                  <div className="flex flex-wrap gap-xs">
                     {agent.capabilities.split(',').map(cap => (
-                      <span key={cap} className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 rounded-full">{cap.trim()}</span>
+                      <span key={cap} className="px-xs py-xs text-xs bg-white/5 rounded-button text-text-muted">{cap.trim()}</span>
                     ))}
                   </div>
                 </div>

@@ -85,61 +85,61 @@ export function AgentEditDrawer({ agent, onClose }: AgentEditDrawerProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className="fixed inset-0 bg-black/30" onClick={onClose} />
-      <div className="relative w-full max-w-2xl bg-white dark:bg-gray-800 shadow-2xl flex flex-col h-full border-l border-gray-200 dark:border-gray-700 animate-slide-in-right">
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-bold">Edit Agent</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative w-full max-w-2xl glass-elevated shadow-elevated flex flex-col h-full border-l border-white/10 animate-slide-in-right rounded-dialog">
+        <div className="flex items-center justify-between p-lg border-b border-white/5">
+          <h2 className="text-xl font-bold text-text font-heading">Edit Agent</h2>
+          <button onClick={onClose} className="text-text-muted hover:text-text transition-colors duration-fast focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none rounded-button p-xs">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-lg space-y-lg">
+          <div className="grid grid-cols-2 gap-md">
             <div className="col-span-2">
-              <label className="block text-sm font-medium mb-1">Name *</label>
+              <label className="block text-sm font-medium text-text mb-1">Name *</label>
               <input
                 type="text"
                 name="name"
                 required
                 value={formData.name}
                 onChange={handleChange}
-                className="w-full border rounded p-2 bg-transparent"
+                className="input-standard w-full"
               />
             </div>
 
             <div className="col-span-2">
-              <label className="block text-sm font-medium mb-1">Description</label>
+              <label className="block text-sm font-medium text-text mb-1">Description</label>
               <input
                 type="text"
                 name="description"
                 value={formData.description || ''}
                 onChange={handleChange}
-                className="w-full border rounded p-2 bg-transparent"
+                className="input-standard w-full"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Icon</label>
+              <label className="block text-sm font-medium text-text mb-1">Icon</label>
               <input
                 type="text"
                 name="icon"
                 placeholder="e.g. bot, code, brain"
                 value={formData.icon || ''}
                 onChange={handleChange}
-                className="w-full border rounded p-2 bg-transparent"
+                className="input-standard w-full"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Color</label>
+              <label className="block text-sm font-medium text-text mb-1">Color</label>
               <select
                 name="color"
                 value={formData.color || 'blue'}
                 onChange={handleChange}
-                className="w-full border rounded p-2 bg-transparent"
+                className="input-standard w-full"
               >
                 <option value="blue">Blue</option>
                 <option value="green">Green</option>
@@ -151,12 +151,12 @@ export function AgentEditDrawer({ agent, onClose }: AgentEditDrawerProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Provider</label>
+              <label className="block text-sm font-medium text-text mb-1">Provider</label>
               <select
                 name="provider_id"
                 value={formData.provider_id || ''}
                 onChange={handleChange}
-                className="w-full border rounded p-2 bg-transparent"
+                className="input-standard w-full"
               >
                 <option value="">Default Provider</option>
                 {providers.map(p => (
@@ -168,19 +168,19 @@ export function AgentEditDrawer({ agent, onClose }: AgentEditDrawerProps) {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Model</label>
+              <label className="block text-sm font-medium text-text mb-1">Model</label>
               <input
                 type="text"
                 name="preferred_model_id"
                 value={formData.preferred_model_id || ''}
                 onChange={handleChange}
-                className="w-full border rounded p-2 bg-transparent"
+                className="input-standard w-full"
                 placeholder="e.g. claude-3-sonnet"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Temperature</label>
+              <label className="block text-sm font-medium text-text mb-1">Temperature</label>
               <input
                 type="number"
                 step="0.1"
@@ -189,12 +189,12 @@ export function AgentEditDrawer({ agent, onClose }: AgentEditDrawerProps) {
                 name="temperature"
                 value={formData.temperature}
                 onChange={handleChange}
-                className="w-full border rounded p-2 bg-transparent"
+                className="input-standard w-full"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Top P</label>
+              <label className="block text-sm font-medium text-text mb-1">Top P</label>
               <input
                 type="number"
                 step="0.1"
@@ -203,23 +203,23 @@ export function AgentEditDrawer({ agent, onClose }: AgentEditDrawerProps) {
                 name="top_p"
                 value={formData.top_p}
                 onChange={handleChange}
-                className="w-full border rounded p-2 bg-transparent"
+                className="input-standard w-full"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Max Tokens</label>
+              <label className="block text-sm font-medium text-text mb-1">Max Tokens</label>
               <input
                 type="number"
                 name="max_tokens"
                 value={formData.max_tokens || ''}
                 onChange={handleChange}
-                className="w-full border rounded p-2 bg-transparent"
+                className="input-standard w-full"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Presence Penalty</label>
+              <label className="block text-sm font-medium text-text mb-1">Presence Penalty</label>
               <input
                 type="number"
                 step="0.1"
@@ -228,12 +228,12 @@ export function AgentEditDrawer({ agent, onClose }: AgentEditDrawerProps) {
                 name="presence_penalty"
                 value={formData.presence_penalty}
                 onChange={handleChange}
-                className="w-full border rounded p-2 bg-transparent"
+                className="input-standard w-full"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">Frequency Penalty</label>
+              <label className="block text-sm font-medium text-text mb-1">Frequency Penalty</label>
               <input
                 type="number"
                 step="0.1"
@@ -242,30 +242,30 @@ export function AgentEditDrawer({ agent, onClose }: AgentEditDrawerProps) {
                 name="frequency_penalty"
                 value={formData.frequency_penalty}
                 onChange={handleChange}
-                className="w-full border rounded p-2 bg-transparent"
+                className="input-standard w-full"
               />
             </div>
 
             <div className="col-span-2">
-              <label className="block text-sm font-medium mb-1">System Prompt</label>
+              <label className="block text-sm font-medium text-text mb-1">System Prompt</label>
               <textarea
                 name="prompt_template"
                 rows={4}
                 value={formData.prompt_template || ''}
                 onChange={handleChange}
-                className="w-full border rounded p-2 bg-transparent"
+                className="input-standard w-full resize-y"
                 placeholder="You are a helpful assistant..."
               />
             </div>
 
             <div className="col-span-2">
-              <label className="block text-sm font-medium mb-1">Capabilities (comma separated)</label>
+              <label className="block text-sm font-medium text-text mb-1">Capabilities (comma separated)</label>
               <input
                 type="text"
                 name="capabilities"
                 value={formData.capabilities || ''}
                 onChange={handleChange}
-                className="w-full border rounded p-2 bg-transparent"
+                className="input-standard w-full"
               />
             </div>
 
@@ -276,8 +276,9 @@ export function AgentEditDrawer({ agent, onClose }: AgentEditDrawerProps) {
                   name="streaming"
                   checked={formData.streaming}
                   onChange={handleChange}
+                  className="accent-accent"
                 />
-                <span className="text-sm font-medium">Streaming</span>
+                <span className="text-sm font-medium text-text">Streaming</span>
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -285,8 +286,9 @@ export function AgentEditDrawer({ agent, onClose }: AgentEditDrawerProps) {
                   name="memory_enabled"
                   checked={formData.memory_enabled}
                   onChange={handleChange}
+                  className="accent-accent"
                 />
-                <span className="text-sm font-medium">Memory Enabled</span>
+                <span className="text-sm font-medium text-text">Memory Enabled</span>
               </label>
               <label className="flex items-center gap-2">
                 <input
@@ -294,24 +296,25 @@ export function AgentEditDrawer({ agent, onClose }: AgentEditDrawerProps) {
                   name="enabled"
                   checked={formData.enabled}
                   onChange={handleChange}
+                  className="accent-accent"
                 />
-                <span className="text-sm font-medium">Enabled</span>
+                <span className="text-sm font-medium text-text">Enabled</span>
               </label>
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-end gap-sm pt-md border-t border-white/5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
+              className="px-md py-sm border border-white/10 rounded-button text-text-muted hover:bg-white/5 transition-colors duration-fast focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="px-md py-sm bg-accent text-white rounded-button hover:bg-accent-dark disabled:opacity-50 transition-colors duration-fast focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
             >
               {isSubmitting ? 'Saving...' : 'Save Changes'}
             </button>

@@ -13,7 +13,7 @@ function StatusBar() {
   });
 
   const getStatusColor = (status?: string) => {
-    if (!status) return 'bg-gray-500 shadow-none';
+    if (!status) return 'bg-text-muted shadow-none';
     switch (status.toLowerCase()) {
       case 'healthy':
       case 'connected':
@@ -25,7 +25,7 @@ function StatusBar() {
       case 'disconnected':
         return 'bg-danger shadow-[0_0_8px_rgba(239,68,68,0.8)]';
       default:
-        return 'bg-gray-500 shadow-none';
+        return 'bg-text-muted shadow-none';
     }
   };
 

@@ -4,19 +4,19 @@ interface BadgeProps {
 }
 
 const colorClasses: Record<string, string> = {
-  gray: 'bg-gray-100 text-gray-800',
-  red: 'bg-red-100 text-red-800',
-  yellow: 'bg-yellow-100 text-yellow-800',
-  green: 'bg-green-100 text-green-800',
-  blue: 'bg-blue-100 text-blue-800',
-  indigo: 'bg-indigo-100 text-indigo-800',
-  purple: 'bg-purple-100 text-purple-800',
-  pink: 'bg-pink-100 text-pink-800',
+  gray: 'badge-neutral',
+  red: 'badge-danger',
+  yellow: 'badge-warning',
+  green: 'badge-success',
+  blue: 'badge-accent',
+  indigo: 'bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 inline-flex items-center px-2 py-0.5 rounded-button text-xs font-medium',
+  purple: 'badge-secondary',
+  pink: 'bg-pink-500/15 text-pink-300 border border-pink-500/30 inline-flex items-center px-2 py-0.5 rounded-button text-xs font-medium',
 }
 
 export function Badge({ children, color = 'gray' }: BadgeProps) {
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorClasses[color]}`}>
+    <span className={colorClasses[color]}>
       {children}
     </span>
   )

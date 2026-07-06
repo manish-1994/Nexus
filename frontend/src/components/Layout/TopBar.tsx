@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Menu, Search, Bell, User, Cpu } from 'lucide-react';
-import { cn } from '../common/Motion';
+import { cn, springs } from '../common/Motion';
 
 interface TopBarProps {
   onMenuToggle: () => void;
@@ -43,63 +43,75 @@ function TopBar({ onMenuToggle }: TopBarProps) {
   };
 
   return (
-    <header className="h-16 flex items-center justify-between px-6 mx-4 mt-4 glass-panel rounded-2xl z-50 sticky top-4">
+    <header className="h-14 flex items-center justify-between px-lg mx-md mt-md glass-surface rounded-panel z-50 sticky top-md">
       {/* Left section: Menu toggle + Breadcrumbs */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-sm">
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
+          transition={springs.instant}
           onClick={onMenuToggle}
-          className="p-2 rounded-xl text-text-muted hover:text-white hover:bg-surface transition-colors focus:outline-none"
+          className="p-sm rounded-button text-text-muted hover:text-text hover:bg-surface transition-colors focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
           aria-label="Toggle menu"
         >
           <Menu className="w-5 h-5" />
         </motion.button>
 
         <nav className="hidden sm:flex items-center space-x-2 text-sm">
-          <Link to="/" className="text-text-muted hover:text-white transition-colors font-medium">
+          <Link to="/" className="text-text-muted hover:text-text transition-colors font-medium">
             Home
           </Link>
           {getBreadcrumbs().slice(1).map((crumb, index) => (
             <span key={index} className="flex items-center space-x-2">
               <span className="text-white/20">/</span>
-              <span className="text-white font-semibold tracking-wide">{crumb}</span>
+              <span className="text-text font-semibold tracking-wide">{crumb}</span>
             </span>
           ))}
         </nav>
 
-        <h1 className="text-lg font-bold text-white sm:hidden tracking-wider">
+        <h1 className="text-lg font-bold text-text sm:hidden tracking-wider">
           {getCurrentModule()}
         </h1>
       </div>
 
-      {/* Right section: Search, System Status, Notifications, User */}
-      <div className="flex items-center space-x-3">
-        {/* Global Search */}
-        <div className="hidden md:block relative">
-          <motion.div
-            animate={{ width: searchFocused ? 300 : 220 }}
-            className="relative"
-          >
-            <input
-              type="text"
-              placeholder="Search..."
-              className={cn(
-                "w-full pl-10 pr-4 py-2 rounded-xl bg-surface/50 border border-white/10 text-sm text-white placeholder-text-muted transition-all outline-none",
-                searchFocused ? "border-accent/50 ring-2 ring-accent/20 bg-surface shadow-glow" : "hover:bg-surface/80 hover:border-white/20"
-              )}
-              onFocus={() => setSearchFocused(true)}
-              onBlur={() => setSearchFocused(false)}
-            />
-            <Search className={cn("absolute left-3 top-2.5 w-4 h-4 transition-colors", searchFocused ? "text-accent-light" : "text-text-muted")} />
-          </motion.div>
-        </div>
+      {/* Center section: Global Search — centered for HUD feel */}
+      <div className="hidden md:block absolute left-1/2 -translate-x-1/2">
+        <motion.div
+          animate={{ width: searchFocused ? 320 : 240 }}
+          transition={springs.smooth}
+          className="relative"
+        >
+          <input
+            type="text"
+            placeholder="Search..."
+            aria-label="Global search"
+            className={cn(
+              "w-full pl-10 pr-md py-sm rounded-input bg-surface/50 border text-sm text-text placeholder-text-muted/70 transition-all duration-normal outline-none",
+              searchFocused
+                ? "border-accent/40 ring-2 ring-accent/20 bg-surface shadow-glow-sm"
+                : "hover:bg-surface/80 hover:border-[rgba(255,255,255,0.15)]"
+            )}
+            style={{ borderColor: searchFocused ? undefined : 'rgba(255,255,255,0.08)' }}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+          />
+          <Search className={cn(
+            "absolute left-3 top-2.5 w-4 h-4 transition-colors duration-normal",
+            searchFocused ? "text-accent" : "text-text-muted"
+          )} />
+        </motion.div>
+      </div>
 
+      {/* Right section: System Status, Notifications, User — equal spacing */}
+      <div className="flex items-center space-x-sm">
         {/* System Status / Agent */}
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
-          className="hidden lg:flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-surface/50 border border-white/10 text-text-muted hover:text-white transition-colors"
+          transition={springs.instant}
+          className="hidden lg:flex items-center space-x-1.5 px-sm py-1.5 rounded-button bg-surface/50 border text-text-muted hover:text-text hover:border-accent/20 transition-all duration-normal"
+          style={{ borderColor: 'rgba(255,255,255,0.08)' }}
+          aria-label="Active model"
         >
           <Cpu className="w-4 h-4 text-accent" />
           <span className="text-xs font-semibold tracking-wide">GEMINI 1.5 PRO</span>
@@ -109,21 +121,23 @@ function TopBar({ onMenuToggle }: TopBarProps) {
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
-          className="p-2 rounded-xl text-text-muted hover:text-white hover:bg-surface transition-colors relative"
+          transition={springs.instant}
+          className="p-sm rounded-button text-text-muted hover:text-text hover:bg-surface transition-colors relative focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
           aria-label="Notifications"
         >
           <Bell className="w-5 h-5" />
-          <span className="absolute top-2 right-2 w-2 h-2 bg-accent-light rounded-full shadow-[0_0_8px_rgba(96,165,250,0.8)]"></span>
+          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent rounded-full shadow-glow-sm"></span>
         </motion.button>
 
         {/* User Menu */}
         <motion.button
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
-          className="p-2 rounded-xl text-text-muted hover:text-white hover:bg-surface transition-colors bg-gradient-to-tr from-accent/20 to-transparent"
+          transition={springs.instant}
+          className="p-sm rounded-button text-text-muted hover:text-text hover:bg-surface transition-colors bg-gradient-to-tr from-accent/20 to-transparent focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
           aria-label="User menu"
         >
-          <User className="w-5 h-5 text-accent-light" />
+          <User className="w-5 h-5 text-accent" />
         </motion.button>
       </div>
     </header>

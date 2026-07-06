@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { chatApi } from '../../api/chat'
 import { Message, Conversation } from '../../types/chat'
@@ -8,6 +8,40 @@ import { showError, showWarning } from '../../utils/toast'
 export function useOptimisticMessages(conversationId: number | null) {
   const queryClient = useQueryClient()
   const abortControllerRef = useRef<AbortController | null>(null)
+
+  // Reactive isStreaming via cache subscription + local state
+  const [isStreaming, setIsStreaming] = useState(false)
+
+  useEffect(() => {
+    if (!conversationId) {
+      setIsStreaming(false)
+      return
+    }
+
+    // Compute initial state
+    const computeStreaming = () => {
+      const messages = queryClient.getQueryData<Message[]>(['messages', conversationId]) || []
+      const lastMessage = messages[messages.length - 1]
+      // Only consider streaming if status is actively 'generating'.
+      // Do NOT use isThinking alone — it can be stale on completed/failed messages.
+      return lastMessage?.status === 'generating'
+    }
+    setIsStreaming(computeStreaming())
+
+    // Subscribe to cache changes for this conversation's messages
+    const unsubscribe = queryClient.getQueryCache().subscribe((event) => {
+      if (
+        event?.query?.queryKey?.[0] === 'messages' &&
+        event?.query?.queryKey?.[1] === conversationId
+      ) {
+        setIsStreaming(computeStreaming())
+      }
+    })
+
+    return () => {
+      unsubscribe()
+    }
+  }, [conversationId, queryClient])
 
   const sendMessage = useCallback(async (
     content: string,
@@ -70,7 +104,7 @@ export function useOptimisticMessages(conversationId: number | null) {
 
     // Simulate marking user message as sent
     setTimeout(() => {
-      queryClient.setQueryData<Message[]>(['messages', convId], (old = []) => 
+      queryClient.setQueryData<Message[]>(['messages', convId], (old = []) =>
         old.map(m => m.id === userMessage.id ? { ...m, status: 'sent' } : m)
       )
     }, 300)
@@ -81,7 +115,7 @@ export function useOptimisticMessages(conversationId: number | null) {
     abortControllerRef.current = new AbortController()
 
     try {
-      await chatApi.sendMessage({
+      const requestPayload = {
         conversation_id: convId,
         content,
         provider_id: providerId,
@@ -90,40 +124,57 @@ export function useOptimisticMessages(conversationId: number | null) {
         agent_id: agentId || undefined,
         provider_override: providerOverride,
         model_override: modelOverride,
-      }, (chunk) => {
+      }
+
+      await chatApi.sendMessage(requestPayload, (chunk) => {
         if (firstChunk) {
           firstChunk = false
           currentContent = chunk
-          queryClient.setQueryData<Message[]>(['messages', convId], (old = []) => 
-            old.map(m => m.id === tempAssistantId ? { 
-              ...m, 
-              content: chunk, 
-              isThinking: false, 
-              status: 'generating' 
+          queryClient.setQueryData<Message[]>(['messages', convId], (old = []) => {
+            return old.map(m => m.id === tempAssistantId ? {
+              ...m,
+              content: chunk,
+              isThinking: false,
+              status: 'generating' as const
             } : m)
-          )
+          })
         } else {
           currentContent += chunk
-          queryClient.setQueryData<Message[]>(['messages', convId], (old = []) => 
-            old.map(m => m.id === tempAssistantId ? { 
-              ...m, 
-              content: currentContent 
+          queryClient.setQueryData<Message[]>(['messages', convId], (old = []) => {
+            return old.map(m => m.id === tempAssistantId ? {
+              ...m,
+              content: currentContent
             } : m)
-          )
+          })
         }
       }, abortControllerRef.current.signal)
 
-      // Stream completed
-      queryClient.setQueryData<Message[]>(['messages', convId], (old = []) => 
-        old.map(m => m.id === tempAssistantId ? { 
-          ...m, 
-          status: 'completed' 
+      // Stream completed — update temp message status via setQueryData instead of
+      // invalidateQueries, to avoid the refetch race condition that can wipe the cache.
+      queryClient.setQueryData<Message[]>(['messages', convId], (old = []) => {
+        return old.map(m => m.id === tempAssistantId ? {
+          ...m,
+          content: currentContent,
+          isThinking: false,
+          status: 'completed' as const
         } : m)
-      )
+      })
       
-      // Invalidate query to get real IDs from the backend
-      queryClient.invalidateQueries({ queryKey: ['messages', convId] })
-      queryClient.invalidateQueries({ queryKey: ['conversations'] })
+      // Update conversation sidebar optimistically instead of invalidating,
+      // to avoid a refetch that could race with the next message's optimistic insert
+      queryClient.setQueryData<Conversation[]>(['conversations'], (old = []) => {
+        return old.map(conv => {
+          if (conv.id === convId) {
+            return {
+              ...conv,
+              last_message_preview: currentContent.slice(0, 50),
+              updated_at: new Date().toISOString(),
+              message_count: (conv.message_count || 0) + 1,
+            }
+          }
+          return conv
+        })
+      })
 
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
@@ -191,10 +242,6 @@ export function useOptimisticMessages(conversationId: number | null) {
 
     await sendMessage(lastUserMsg.content, convId, providerId, model, agentId, providerOverride, modelOverride)
   }, [queryClient, sendMessage])
-
-  const messages = (conversationId ? queryClient.getQueryData<Message[]>(['messages', conversationId]) : []) || []
-  const lastMessage = messages[messages.length - 1]
-  const isStreaming = lastMessage?.status === 'generating' || lastMessage?.isThinking === true
 
   return {
     sendMessage,

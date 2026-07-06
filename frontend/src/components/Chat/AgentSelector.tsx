@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
+import { motion } from 'framer-motion'
 import type { Agent } from '../../types/agent'
 import { useProviderStore } from '../../stores/providerStore'
+import { springs } from '../common/Motion'
 
 interface AgentSelectorProps {
   agents: Agent[]
@@ -36,8 +38,8 @@ export function AgentSelector({ agents, selectedAgentId, onAgentChange, isLoadin
   }, [])
 
   return (
-    <div className="flex flex-col gap-1.5" ref={dropdownRef}>
-      <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-1.5 font-label">
+    <div className="flex flex-col gap-sm" ref={dropdownRef}>
+      <label className="block text-[10px] font-bold text-text-muted uppercase tracking-widest mb-xs font-label">
         Agent Node
       </label>
       <div className="relative">
@@ -45,22 +47,22 @@ export function AgentSelector({ agents, selectedAgentId, onAgentChange, isLoadin
           type="button"
           onClick={() => setIsOpen(!isOpen)}
           disabled={isLoading || agents.length === 0}
-          className="w-full bg-elevated/40 text-text border border-white/10 rounded-xl py-2.5 px-4 text-xs font-heading tracking-wider focus:outline-none focus:ring-1 focus:ring-accent/30 focus:border-accent-light/50 text-left flex justify-between items-center transition-all disabled:opacity-50 cursor-pointer"
+          className="w-full bg-surface/40 text-text border border-white/10 rounded-button py-sm px-md text-xs font-heading tracking-wider focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/50 text-left flex justify-between items-center transition-all disabled:opacity-50 cursor-pointer"
         >
-          <div className="flex items-center gap-2 truncate">
+          <div className="flex items-center gap-sm truncate">
             {selectedAgent ? (
               <>
-                <span className="flex-shrink-0 w-6 h-6 rounded-lg bg-accent/15 border border-accent/30 text-accent flex items-center justify-center">
+                <span className="flex-shrink-0 w-6 h-6 rounded-button bg-accent/15 border border-accent/30 text-accent flex items-center justify-center">
                   <i className={`icon-${selectedAgent.icon || 'bot'} text-xs`} />
                 </span>
                 <span className="font-bold uppercase tracking-wider text-[11px]">{selectedAgent.name}</span>
                 {selectedAgent.provider_id && (
-                  <span className="ml-2 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest bg-white/5 text-text-muted border border-white/10">
+                  <span className="ml-sm px-xs py-xs rounded-button text-[8px] font-bold uppercase tracking-widest bg-white/5 text-text-muted/10 text-text-muted border border-white/10">
                     {providers.find(p => p.id === selectedAgent.provider_id)?.name || 'Provider'}
                   </span>
                 )}
                 {getAgentModelName(selectedAgent) && (
-                  <span className="ml-1 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest bg-accent/10 text-accent-light border border-accent/20">
+                  <span className="ml-xs px-xs py-xs rounded-button text-[8px] font-bold uppercase tracking-widest bg-accent/10 text-accent-light border border-accent/20">
                     {getAgentModelName(selectedAgent)}
                   </span>
                 )}
@@ -77,23 +79,29 @@ export function AgentSelector({ agents, selectedAgentId, onAgentChange, isLoadin
         </button>
 
         {isOpen && (
-          <div className="absolute z-50 w-full mt-1 bg-surface border border-white/10 rounded-xl shadow-glass py-1 text-xs max-h-60 overflow-auto p-1">
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={springs.smooth}
+            className="absolute z-50 w-full mt-xs glass-elevated rounded-panel shadow-glow py-xs text-xs max-h-60 overflow-auto p-xs"
+          >
             <button
               type="button"
-              className={`w-full text-left px-3 py-2 rounded-lg hover:bg-accent/15 hover:text-accent-light text-text transition-all ${!selectedAgentId ? 'bg-accent/25 text-accent-light font-bold' : ''}`}
+              className={`w-full text-left px-sm py-sm rounded-button hover:bg-accent/15 hover:text-accent-light text-text transition-all ${!selectedAgentId ? 'bg-accent/25 text-accent-light font-bold' : ''}`}
               onClick={() => {
                 onAgentChange(null)
                 setIsOpen(false)
               }}
             >
               <div className="font-bold uppercase tracking-wider text-[10px]">Assistant</div>
-              <div className="text-[9px] text-text-muted tracking-wide mt-0.5">Default generic chat interface</div>
+              <div className="text-[9px] text-text-muted tracking-wide mt-xs">Default generic chat interface</div>
             </button>
             {agents.map((agent) => (
               <button
                 key={agent.id}
                 type="button"
-                className={`w-full text-left px-3 py-2 rounded-lg hover:bg-accent/15 hover:text-accent-light flex flex-col gap-1 text-text transition-all ${selectedAgentId === agent.id ? 'bg-accent/25 text-accent-light font-bold' : ''}`}
+                className={`w-full text-left px-sm py-sm rounded-button hover:bg-accent/15 hover:text-accent-light flex flex-col gap-xs text-text transition-all ${selectedAgentId === agent.id ? 'bg-accent/25 text-accent-light font-bold' : ''}`}
                 onClick={() => {
                   onAgentChange(agent.id)
                   setIsOpen(false)
@@ -101,20 +109,20 @@ export function AgentSelector({ agents, selectedAgentId, onAgentChange, isLoadin
                 title={agent.description}
               >
                 <div className="flex justify-between items-center w-full">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-lg bg-accent/15 border border-accent/30 text-accent flex items-center justify-center">
+                  <div className="flex items-center gap-sm">
+                    <span className="w-6 h-6 rounded-button bg-accent/15 border border-accent/30 text-accent flex items-center justify-center">
                       <i className={`icon-${agent.icon || 'bot'} text-xs`} />
                     </span>
                     <span className="font-bold uppercase tracking-wider text-[10px]">{agent.name}</span>
                   </div>
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-xs">
                     {agent.provider_id && (
-                      <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest bg-white/5 text-text-muted border border-white/10">
+                      <span className="px-xs py-xs rounded-button text-[8px] font-bold uppercase tracking-widest bg-text-muted/10 text-text-muted border border-white/10">
                         {providers.find(p => p.id === agent.provider_id)?.name || 'Provider'}
                       </span>
                     )}
                     {getAgentModelName(agent) && (
-                      <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest bg-accent/10 text-accent-light border border-accent/20">
+                      <span className="px-xs py-xs rounded-button text-[8px] font-bold uppercase tracking-widest bg-accent/10 text-accent-light border border-accent/20">
                         {getAgentModelName(agent)}
                       </span>
                     )}
@@ -127,7 +135,7 @@ export function AgentSelector({ agents, selectedAgentId, onAgentChange, isLoadin
                 )}
               </button>
             ))}
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

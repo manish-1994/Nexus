@@ -85,7 +85,7 @@ export function SpotlightSearch() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-            className="relative w-full max-w-xl glass-elevated rounded-2xl overflow-hidden border border-accent/20 shadow-[0_0_50px_rgba(59,130,246,0.2)]"
+            className="relative w-full max-w-xl glass-elevated rounded-panel overflow-hidden border border-accent/20 shadow-glow-lg"
           >
             {/* Input well */}
             <div className="flex items-center space-x-3 p-4 border-b border-white/5 bg-surface/50">
@@ -97,9 +97,10 @@ export function SpotlightSearch() {
                 onChange={e => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Search modules, configurations, agents... [Enter]"
-                className="flex-1 bg-transparent text-text font-heading text-sm placeholder-text-muted/40 outline-none caret-accent selection:bg-accent/30"
+                aria-label="Spotlight search"
+                className="flex-1 bg-transparent text-text font-heading text-sm placeholder-text-muted/70 outline-none caret-accent selection:bg-accent/30"
               />
-              <span className="text-[9px] uppercase font-bold tracking-widest bg-white/5 border border-white/10 px-2 py-1 rounded text-text-muted">
+              <span className="text-[9px] uppercase font-bold tracking-widest bg-white/5 border border-white/10 px-2 py-1 rounded-button text-text-muted">
                 ESC
               </span>
             </div>
@@ -117,19 +118,29 @@ export function SpotlightSearch() {
                   return (
                     <div
                       key={item.name}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Navigate to ${item.name}`}
                       onMouseEnter={() => setSelectedIndex(idx)}
                       onClick={() => {
                         window.location.href = item.url;
                         setIsOpen(false);
                       }}
-                      className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          window.location.href = item.url
+                          setIsOpen(false)
+                        }
+                      }}
+                      className={`flex items-center justify-between p-3 rounded-button cursor-pointer transition-all focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none ${
                         isSelected 
                           ? 'bg-accent/15 border border-accent/30 shadow-[0_0_15px_rgba(59,130,246,0.1)]' 
                           : 'border border-transparent hover:bg-white/5'
                       }`}
                     >
                       <div className="flex items-center space-x-3">
-                        <div className={`p-2 rounded-lg ${isSelected ? 'bg-accent/20 text-accent-light' : 'bg-white/5 text-text-muted'}`}>
+                        <div className={`p-2 rounded-button ${isSelected ? 'bg-accent/20 text-accent-light' : 'bg-white/5 text-text-muted'}`}>
                           <Icon className="w-4 h-4" />
                         </div>
                         <div>

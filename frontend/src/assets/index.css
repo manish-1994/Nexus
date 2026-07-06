@@ -6,28 +6,353 @@
   html {
     @apply scroll-smooth;
   }
-  
+
   body {
     @apply bg-background text-text font-sans antialiased overflow-hidden;
-    /* We use overflow-hidden because the OS desktop environment handles scrolling */
   }
 
   * {
-    @apply border-surface;
+    @apply border-border;
   }
 }
 
 @layer components {
-  .glass-panel {
-    @apply bg-surface/50 backdrop-blur-md border border-white/10 shadow-glass;
+  /* ── Glass Effect Presets ── */
+  .glass-surface {
+    @apply bg-surface/40 backdrop-blur-md border border-white/5 shadow-soft;
   }
-  
+
   .glass-elevated {
-    @apply bg-elevated/60 backdrop-blur-lg border border-white/20 shadow-glass;
+    @apply bg-surface-elevated/50 backdrop-blur-lg border border-white/10 shadow-elevated;
+  }
+
+  .glass-subtle {
+    @apply bg-surface/20 backdrop-blur-sm border border-white/[0.03];
+  }
+
+  .glass-input {
+    @apply bg-surface/35 backdrop-blur-sm border;
+    border-color: rgba(255,255,255,.08);
+  }
+
+  /* ── Standardized Input ── */
+  .input-standard {
+    @apply bg-surface/35 text-text placeholder-text-muted/70
+           border rounded-input
+           px-sm py-sm text-sm
+           focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/40
+           caret-accent selection:bg-accent/30
+           disabled:opacity-40 disabled:cursor-not-allowed
+           transition-all duration-normal;
+    border-color: rgba(255,255,255,.08);
+  }
+
+  /* ── Standardized Badge ── */
+  .badge-success {
+    @apply inline-flex items-center px-2 py-0.5 rounded-button text-xs font-medium
+           bg-success/15 text-success border border-success/30;
+  }
+  .badge-warning {
+    @apply inline-flex items-center px-2 py-0.5 rounded-button text-xs font-medium
+           bg-warning/15 text-warning border border-warning/30;
+  }
+  .badge-danger {
+    @apply inline-flex items-center px-2 py-0.5 rounded-button text-xs font-medium
+           bg-danger/15 text-danger border border-danger/30;
+  }
+  .badge-accent {
+    @apply inline-flex items-center px-2 py-0.5 rounded-button text-xs font-medium
+           bg-accent/15 text-accent border border-accent/30;
+  }
+  .badge-primary {
+    @apply inline-flex items-center px-2 py-0.5 rounded-button text-xs font-medium
+           bg-primary/15 text-primary-light border border-primary/30;
+  }
+  .badge-neutral {
+    @apply inline-flex items-center px-2 py-0.5 rounded-button text-xs font-medium
+           bg-white/5 text-text-muted border border-white/10;
+  }
+
+  /* ── Premium Pill (Chat Header) ── */
+  .pill {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-button text-xs font-medium
+           bg-surface/40 border text-text-secondary
+           hover:bg-surface/60 hover:text-text hover:border-accent/20
+           transition-all duration-normal cursor-pointer select-none;
+    border-color: rgba(255,255,255,.08);
+  }
+  .pill-active {
+    @apply bg-accent/15 text-accent border-accent/30;
+  }
+
+  /* ── Skeleton Shimmer ── */
+  .skeleton {
+    @apply bg-white/5 rounded-card relative overflow-hidden;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.04) 50%,
+      transparent 100%
+    );
+    animation: shimmer 1.8s infinite ease-in-out;
+  }
+
+  /* ── Streaming Cursor ── */
+  .streaming-cursor {
+    @apply inline-block w-0.5 h-4 bg-accent ml-0.5 align-middle;
+    animation: blink-cursor 1s infinite step-end;
+  }
+
+  /* ── Card Hover Effects ── */
+  .card-hover {
+    @apply transition-all duration-normal hover:-translate-y-1 hover:shadow-glow
+           hover:border-accent/20;
   }
 }
 
-/* Scrollbar hiding for minimal OS look, while keeping functionality */
+/* ── Chat Layout Utilities ── */
+.chat-container {
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 32px;
+  padding-right: 32px;
+  padding-top: 24px;
+  padding-bottom: 180px;
+  width: 100%;
+}
+
+@media (max-width: 960px) {
+  .chat-container {
+    padding-left: 20px;
+    padding-right: 20px;
+    padding-top: 16px;
+    padding-bottom: 160px;
+  }
+}
+
+@media (max-width: 640px) {
+  .chat-container {
+    padding-left: 12px;
+    padding-right: 12px;
+    padding-top: 12px;
+    padding-bottom: 140px;
+  }
+}
+
+/* ── Floating Dock (enhanced) ── */
+.floating-dock-chat {
+  border-radius: 24px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(22, 31, 46, 0.85);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25), 0 0 24px rgba(0, 229, 255, 0.08);
+  padding: 12px 16px;
+  transition: all 0.22s ease;
+}
+
+.floating-dock-chat:focus-within {
+  border-color: rgba(0, 229, 255, 0.30);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25), 0 0 24px rgba(0, 229, 255, 0.20);
+}
+
+/* ── Message Content Typography ── */
+.message-body {
+  font-size: 16px;
+  line-height: 1.75;
+  max-width: 80ch;
+}
+
+.message-body p {
+  margin-bottom: 12px;
+}
+
+.message-body p:last-child {
+  margin-bottom: 0;
+}
+
+.message-body code {
+  font-size: 14px;
+}
+
+.message-body pre {
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 12px 0;
+  border-radius: 18px;
+}
+
+/* ── Chat input textarea ── */
+.chat-input {
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* ── Background HUD lines ── */
+.hud-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.06), transparent);
+  height: 1px;
+  animation: hud-pulse 4s ease-in-out infinite;
+}
+
+@keyframes hud-pulse {
+  0%, 100% { opacity: 0.2; transform: scaleX(0.95); }
+  50% { opacity: 0.6; transform: scaleX(1); }
+}
+
+/* ── Keyframe Animations ── */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Chat UX Enhancements ── */
+
+/* Pulsing border for the "Thinking..." placeholder */
+@keyframes thinking-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(0, 229, 255, 0.25),
+                0 0 18px rgba(0, 229, 255, 0.08);
+  }
+  50% {
+    box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.18),
+                0 0 28px rgba(0, 229, 255, 0.18);
+  }
+}
+.thinking-pulse {
+  animation: thinking-pulse 2.2s ease-in-out infinite;
+}
+
+/* Shimmer sweep across the thinking placeholder */
+@keyframes shimmer-sweep {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(120%); }
+}
+.shimmer-sweep::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgba(0, 229, 255, 0.06) 50%,
+    transparent 80%
+  );
+  animation: shimmer-sweep 2.4s infinite ease-in-out;
+  pointer-events: none;
+}
+
+/* Rotating loader ring */
+@keyframes nexus-spin {
+  to { transform: rotate(360deg); }
+}
+.nexus-spin {
+  animation: nexus-spin 1.4s linear infinite;
+}
+
+/* Bouncing dots for the thinking indicator */
+@keyframes thinking-dot {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.35; }
+  40% { transform: translateY(-4px); opacity: 1; }
+}
+.thinking-dot {
+  animation: thinking-dot 1.4s infinite ease-in-out;
+}
+
+/* Fade + scale entrance for the assistant placeholder */
+@keyframes fade-scale-in {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+.fade-scale-in {
+  animation: fade-scale-in 0.35s ease-out both;
+}
+
+/* Slide-from-right entrance for user messages */
+@keyframes slide-from-right {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.slide-from-right {
+  animation: slide-from-right 0.3s ease-out both;
+}
+
+/* Conversation column — centered, continuous flow */
+.chat-column {
+  max-width: 900px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 24px;
+  padding-right: 24px;
+  padding-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+@media (max-width: 960px) {
+  .chat-column {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .chat-column {
+    padding-left: 12px;
+    padding-right: 12px;
+    gap: 16px;
+  }
+}
+
+/* Status indicator text beneath assistant responses */
+.chat-status {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-muted, #8b95a7);
+}
+.chat-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
+}
+.chat-status--streaming { color: var(--color-accent, #00e5ff); }
+.chat-status--streaming .chat-status-dot { animation: thinking-pulse 1.2s infinite; }
+.chat-status--completed { color: var(--color-success, #34d399); }
+.chat-status--error { color: var(--color-danger, #f87171); }
+.chat-status--thinking { color: var(--color-accent, #00e5ff); }
+.chat-status--thinking .chat-status-dot { animation: thinking-pulse 1.2s infinite; }
+
+/* ── Scrollbar — Thin, Rounded, Dark, Blue Thumb, Fade When Idle ── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -38,10 +363,308 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-surface rounded-full;
+  @apply bg-accent/30 rounded-full;
+  transition: opacity 0.3s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-elevated;
+  @apply bg-accent/50;
 }
 
+/* Fade scrollbar when not hovering the scrollable area */
+*:not(:hover)::-webkit-scrollbar-thumb {
+  @apply bg-white/5;
+}
+
+::-webkit-scrollbar-corner {
+  @apply bg-transparent;
+}
+
+/* ── Accessibility: Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .skeleton::after {
+    animation: none !important;
+  }
+
+  .streaming-cursor {
+    animation: none !important;
+  }
+}
+
+/* ── Premium AI OS — Visual Polish ── */
+
+/* Glassmorphism refinement for status panels */
+.glass-surface {
+  background: rgba(255, 255, 255, 0.025);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.04) inset,
+    0 4px 24px rgba(0, 0, 0, 0.18);
+}
+
+.glass-elevated {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.06) inset,
+    0 8px 32px rgba(0, 0, 0, 0.24);
+}
+
+/* Focus ring — consistent accent halo */
+.focus-ring {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.3);
+  transition: box-shadow 0.15s ease;
+}
+
+/* Subtle hover lift for interactive cards */
+.hover-lift {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.24), 0 0 24px rgba(0, 229, 255, 0.12);
+}
+
+/* Tabular numbers for metrics/HUD */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Animated gradient border for active streaming containers */
+@keyframes border-flow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+.border-flow {
+  background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.4), transparent);
+  background-size: 200% 100%;
+  animation: border-flow 2s linear infinite;
+}
+
+/* Loading skeleton shimmer */
+@keyframes skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-bar {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+/* Conversation switch cross-dissolve */
+@keyframes cross-dissolve-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.cross-dissolve-in {
+  animation: cross-dissolve-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Responsive: hide non-essential pills on small screens */
+@media (max-width: 768px) {
+  .chat-column {
+    gap: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .chat-column {
+    padding-left: 8px;
+    padding-right: 8px;
+    gap: 14px;
+  }
+}
+
+/* ── Mission Control Responsive Layout ── */
+
+/* Desktop: Full Mission Control (≥1440px) */
+@media (min-width: 1440px) {
+  .mission-control-grid {
+    grid-template-columns: 320px 1fr 320px;
+    grid-template-rows: 1fr auto;
+    grid-template-areas:
+      "status core timeline"
+      "graph graph graph";
+  }
+  .mission-control-core {
+    width: 320px;
+    height: 320px;
+  }
+  .mission-control-orbital-ring {
+    width: 480px;
+    height: 480px;
+  }
+}
+
+/* Laptop: Scaled orbit (1024px - 1439px) */
+@media (max-width: 1439px) and (min-width: 1024px) {
+  .mission-control-grid {
+    grid-template-columns: 280px 1fr 280px;
+    grid-template-rows: 1fr auto;
+    grid-template-areas:
+      "status core timeline"
+      "graph graph graph";
+  }
+  .mission-control-core {
+    width: 280px;
+    height: 280px;
+  }
+  .mission-control-orbital-ring {
+    width: 420px;
+    height: 420px;
+  }
+  .mission-status-panel,
+  .mission-timeline {
+    font-size: 0.85rem;
+  }
+}
+
+/* Tablet: Collapse side panels (768px - 1023px) */
+@media (max-width: 1023px) and (min-width: 768px) {
+  .mission-control-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto auto;
+    grid-template-areas:
+      "core"
+      "timeline"
+      "status"
+      "graph";
+  }
+  .mission-control-core {
+    width: 240px;
+    height: 240px;
+    margin: 0 auto;
+  }
+  .mission-control-orbital-ring {
+    width: 360px;
+    height: 360px;
+    margin: 0 auto;
+  }
+  .mission-status-panel {
+    order: 3;
+    max-height: 300px;
+    overflow-y: auto;
+  }
+  .mission-timeline {
+    order: 2;
+    max-height: 250px;
+    overflow-y: auto;
+  }
+  .mission-graph {
+    order: 4;
+  }
+  .mission-agents-panel {
+    display: none; /* Hidden on tablet, accessible via modal */
+  }
+}
+
+/* Mobile: Core only with expandable agent list (≤767px) */
+@media (max-width: 767px) {
+  .mission-control-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    grid-template-areas:
+      "core"
+      "status"
+      "graph";
+    gap: 1rem;
+    padding: 0.5rem;
+  }
+  .mission-control-core {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto;
+  }
+  .mission-control-orbital-ring {
+    width: 300px;
+    height: 300px;
+    margin: 0 auto;
+  }
+  .mission-status-panel {
+    order: 2;
+    max-height: 250px;
+    overflow-y: auto;
+  }
+  .mission-timeline {
+    display: none; /* Hidden on mobile, accessible via bottom sheet */
+  }
+  .mission-graph {
+    order: 3;
+  }
+  .mission-agents-panel {
+    display: none;
+  }
+  .mission-control-background canvas {
+    display: none; /* Disable particle canvas on mobile for performance */
+  }
+}
+
+/* Mission Control specific utility classes */
+.mission-control-grid {
+  display: grid;
+  gap: 1.5rem;
+  height: 100%;
+  width: 100%;
+}
+
+.mission-control-core {
+  flex-shrink: 0;
+}
+
+.mission-control-orbital-ring {
+  flex-shrink: 0;
+}
+
+.mission-status-panel {
+  min-width: 0;
+}
+
+.mission-timeline {
+  min-width: 0;
+}
+
+.mission-graph {
+  min-width: 0;
+}
+
+/* Reduced motion for Mission Control */
+@media (prefers-reduced-motion: reduce) {
+  .mission-control-core *,
+  .mission-control-orbital-ring *,
+  .mission-control-background * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .mission-control-core {
+    border: 2px solid currentColor;
+  }
+  .mission-status-panel,
+  .mission-timeline,
+  .mission-graph {
+    border: 1px solid currentColor;
+  }
+}

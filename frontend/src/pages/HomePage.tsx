@@ -23,31 +23,31 @@ function HomePage() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Welcome to NEXUS V3</h2>
-        <p className="text-gray-600 mb-4">
-          Local-first AI Operating System - Phase 1 Foundation Complete
+      <div className="glass-surface rounded-card p-lg">
+        <h2 className="text-xl font-semibold mb-4 text-text">Welcome to NEXUS V4</h2>
+        <p className="text-text-muted mb-4">
+          Local-first AI Operating System - Phase 
         </p>
       </div>
 
-      <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold mb-4">System Status</h3>
+      <div className="glass-surface rounded-card p-lg">
+        <h3 className="text-lg font-semibold mb-4 text-text">System Status</h3>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <p className="text-sm text-gray-500">Status</p>
-            <p className="text-lg font-medium text-green-600">{health?.status}</p>
+            <p className="text-sm text-text-muted">Status</p>
+            <p className="text-lg font-medium text-success">{health?.status}</p>
           </div>
           <div>
-            <p className="text-sm text-gray-500">Version</p>
-            <p className="text-lg font-medium">{health?.version}</p>
+            <p className="text-sm text-text-muted">Version</p>
+            <p className="text-lg font-medium text-text">{health?.version}</p>
           </div>
           <div>
-            <p className="text-sm text-gray-500">Database</p>
-            <p className="text-lg font-medium">{health?.database}</p>
+            <p className="text-sm text-text-muted">Database</p>
+            <p className="text-lg font-medium text-text">{health?.database}</p>
           </div>
           <div>
-            <p className="text-sm text-gray-500">Environment</p>
-            <p className="text-lg font-medium">{health?.environment}</p>
+            <p className="text-sm text-text-muted">Environment</p>
+            <p className="text-lg font-medium text-text">{health?.environment}</p>
           </div>
         </div>
       </div>

@@ -1,9 +1,13 @@
 function SettingsPage() {
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Settings</h2>
-        <p className="text-gray-600">Settings page - Coming in future phases</p>
+      <div>
+        <h1 className="text-2xl font-bold text-text tracking-wider uppercase">Settings</h1>
+        <p className="text-text-muted mt-1 text-sm">System configuration and preferences</p>
+      </div>
+
+      <div className="glass-surface rounded-card p-lg text-center">
+        <p className="text-text-muted text-sm">Settings panel coming soon.</p>
       </div>
     </div>
   )

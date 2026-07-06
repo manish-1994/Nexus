@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { chatApi } from '../../api/chat'
 import { useConversationManager } from './useConversationManager'
@@ -7,10 +7,14 @@ import { useModelSelection } from './useModelSelection'
 import { useAgentStore } from '../../stores/agentStore'
 import { toast } from 'sonner'
 import { Agent } from '../../types/agent'
+import type { Message, Conversation } from '../../types/chat'
 
 export function useChatController() {
   const queryClient = useQueryClient()
   const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null)
+  const selectedConversationIdRef = useRef<number | null>(null)
+  // Keep ref in sync so callbacks can read latest value without depending on state
+  selectedConversationIdRef.current = selectedConversationId
 
   const {
     conversations,
@@ -48,10 +52,10 @@ export function useChatController() {
 
   const handleDelete = useCallback(async (id: number) => {
     await handleDeleteConversation(id)
-    if (selectedConversationId === id) {
+    if (selectedConversationIdRef.current === id) {
       setSelectedConversationId(null)
     }
-  }, [handleDeleteConversation, selectedConversationId])
+  }, [handleDeleteConversation])
 
   const handleSendMessage = useCallback(async (content: string) => {
     if (!selectedProviderId || !modelName) {
@@ -59,12 +63,17 @@ export function useChatController() {
       return
     }
 
-    let conversationId = selectedConversationId
+    let conversationId = selectedConversationIdRef.current
 
     if (!conversationId) {
       const title = content.slice(0, 40) + (content.length > 40 ? '...' : '')
       const newConversation = await createNewConversation(title)
       conversationId = newConversation.id
+      
+      // PRE-SEED the messages cache BEFORE setting conversationId to prevent
+      // useQuery from fetching before optimistic data is added
+      queryClient.setQueryData<Message[]>(['messages', conversationId], [])
+      
       setSelectedConversationId(conversationId)
     }
 
@@ -76,40 +85,44 @@ export function useChatController() {
     await sendMessage(content, conversationId, selectedProviderId, modelName, selectedAgentId, providerOverride, modelOverride)
     
     // Check if title is "New Conversation", update if needed.
-    const conversation = conversations.find(c => c.id === conversationId)
-    if (conversation && (conversation.title === 'New Conversation' || !conversation.title)) {
-      const title = content.slice(0, 40) + (content.length > 40 ? '...' : '')
-      await chatApi.updateConversation(conversationId, { title })
-      queryClient.invalidateQueries({ queryKey: ['conversations'] })
-    }
+   const latestConversations = queryClient.getQueryData<Conversation[]>(['conversations']) || []
+   const conversation = latestConversations.find(c => c.id === conversationId)
+   if (conversation && (conversation.title === 'New Conversation' || !conversation.title)) {
+     const title = content.slice(0, 40) + (content.length > 40 ? '...' : '')
+     await chatApi.updateConversation(conversationId, { title })
+     // Optimistic update instead of invalidate to avoid refetch race
+     queryClient.setQueryData<Conversation[]>(['conversations'], (old = []) =>
+       old.map(c => c.id === conversationId ? { ...c, title } : c)
+     )
+   }
   }, [
-  selectedConversationId,
   createNewConversation,
   sendMessage,
   selectedProviderId,
   selectedModelId,
   modelName,
   selectedAgentId,
-  conversations,
   queryClient
 ])
 
   const handleRetry = useCallback(async () => {
-    if (!selectedConversationId || !selectedProviderId || !modelName) return
+    const convId = selectedConversationIdRef.current
+    if (!convId || !selectedProviderId || !modelName) return
   
     const agents = queryClient.getQueryData<Agent[]>(['agents']) || []
     const agent = agents.find(a => a.id === selectedAgentId)
     const providerOverride = agent && selectedProviderId !== agent.provider_id ? selectedProviderId : undefined
     const modelOverride = agent && modelName && selectedModelId !== agent.preferred_model_id ? modelName : undefined
   
-    await retryMessage(selectedConversationId, selectedProviderId, modelName, selectedAgentId, providerOverride, modelOverride)
-  }, [selectedConversationId, selectedProviderId, modelName, selectedModelId, selectedAgentId, retryMessage, queryClient])
+    await retryMessage(convId, selectedProviderId, modelName, selectedAgentId, providerOverride, modelOverride)
+  }, [selectedProviderId, modelName, selectedModelId, selectedAgentId, retryMessage, queryClient])
 
   const handleCancel = useCallback(() => {
-    if (selectedConversationId) {
-      cancelStreaming(selectedConversationId)
+    const convId = selectedConversationIdRef.current
+    if (convId) {
+      cancelStreaming(convId)
     }
-  }, [selectedConversationId, cancelStreaming])
+  }, [cancelStreaming])
 
   // Sync with URL
   useEffect(() => {
@@ -133,7 +146,16 @@ export function useChatController() {
     window.history.replaceState({}, '', url.toString())
   }, [selectedConversationId])
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts — uses refs for stable effect dependencies
+  const handleNewConversationRef = useRef(handleNewConversation)
+  handleNewConversationRef.current = handleNewConversation
+  const handleDeleteRef = useRef(handleDelete)
+  handleDeleteRef.current = handleDelete
+  const handleCancelRef = useRef(handleCancel)
+  handleCancelRef.current = handleCancel
+  const isStreamingRef = useRef(isStreaming)
+  isStreamingRef.current = isStreaming
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0
@@ -141,14 +163,15 @@ export function useChatController() {
 
       if (modKey && e.key.toLowerCase() === 'k') {
         e.preventDefault()
-        handleNewConversation()
+        handleNewConversationRef.current()
         return
       }
 
       if (modKey && e.shiftKey && e.key.toLowerCase() === 'c') {
         e.preventDefault()
-        if (selectedConversationId) {
-          handleDelete(selectedConversationId)
+        const convId = selectedConversationIdRef.current
+        if (convId) {
+          handleDeleteRef.current(convId)
         }
         return
       }
@@ -160,16 +183,16 @@ export function useChatController() {
         return
       }
 
-      if (e.key === 'Escape' && isStreaming) {
+      if (e.key === 'Escape' && isStreamingRef.current) {
         e.preventDefault()
-        handleCancel()
+        handleCancelRef.current()
         return
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleNewConversation, handleDelete, handleCancel, selectedConversationId, isStreaming])
+  }, [])
 
   return {
     selectedConversationId,

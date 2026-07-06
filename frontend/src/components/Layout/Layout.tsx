@@ -1,5 +1,6 @@
 import { useState, ReactNode, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useLocation } from 'react-router-dom';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import StatusBar from './StatusBar';
@@ -16,6 +17,8 @@ interface LayoutProps {
 
 function Layout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const location = useLocation();
+  const isChatRoute = location.pathname === '/chat';
 
   return (
     <div className="h-screen w-screen bg-background overflow-hidden flex flex-col relative z-0">
@@ -33,6 +36,14 @@ function Layout({ children }: LayoutProps) {
       </ErrorBoundary>
 
       
+      {/* HUD decorative lines */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-[1]">
+        <div className="hud-line" style={{ top: '15%', animationDelay: '0s' }} />
+        <div className="hud-line" style={{ top: '35%', animationDelay: '1.5s', opacity: 0.5 }} />
+        <div className="hud-line" style={{ top: '55%', animationDelay: '0.8s', opacity: 0.4 }} />
+        <div className="hud-line" style={{ top: '75%', animationDelay: '2.2s', opacity: 0.3 }} />
+      </div>
+
       {/* Top Bar */}
       <TopBar onMenuToggle={() => setSidebarOpen(!sidebarOpen)} />
 
@@ -53,18 +64,28 @@ function Layout({ children }: LayoutProps) {
         </AnimatePresence>
 
         {/* Main Content */}
-        <main className="flex-1 flex flex-col relative z-10 m-4 ml-0">
-          <div className="glass-panel flex-1 rounded-2xl overflow-y-auto">
-            <div className="p-8 h-full">
+        <main className="flex-1 flex flex-col relative z-10">
+          {isChatRoute ? (
+            /* Chat — full bleed, no glass wrapper */
+            <div className="flex-1 flex flex-col overflow-hidden">
               {children}
             </div>
-          </div>
+          ) : (
+            /* Other pages — glass surface card */
+            <div className="flex-1 flex flex-col m-4 ml-0">
+              <div className="glass-surface flex-1 rounded-card overflow-y-auto">
+                <div className="p-8 h-full">
+                  {children}
+                </div>
+              </div>
+            </div>
+          )}
         </main>
       </div>
 
       {/* Status Bar */}
       <div className="m-4 mt-0 z-20">
-        <div className="glass-panel rounded-xl">
+        <div className="glass-surface rounded-panel">
            <StatusBar />
         </div>
       </div>

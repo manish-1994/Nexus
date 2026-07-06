@@ -53,7 +53,7 @@ export function AICore({ state = 'idle' }: AICoreProps) {
     },
   };
 
-  const config = stateConfigs[state];
+  const config = stateConfigs[state] ?? stateConfigs.idle;
 
   return (
     <div className="relative w-80 h-80 flex items-center justify-center select-none pointer-events-none">

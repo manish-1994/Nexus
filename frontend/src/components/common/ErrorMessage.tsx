@@ -5,11 +5,11 @@ interface ErrorMessageProps {
 
 function ErrorMessage({ message, className = '' }: ErrorMessageProps) {
   return (
-    <div className={`rounded-md bg-red-50 p-4 ${className}`}>
+    <div className={`rounded-card bg-danger/10 border border-danger/30 p-4 ${className}`}>
       <div className="flex">
         <div className="ml-3">
-          <h3 className="text-sm font-medium text-red-800">Error</h3>
-          <div className="mt-2 text-sm text-red-700">
+          <h3 className="text-sm font-medium text-danger">Error</h3>
+          <div className="mt-2 text-sm text-danger/80">
             <p>{message}</p>
           </div>
         </div>

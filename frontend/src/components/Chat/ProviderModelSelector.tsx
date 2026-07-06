@@ -43,11 +43,13 @@ function ProviderModelSelector() {
         if (providersData) {
             const activeProviders = providersData.filter(p => p.is_active)
             useProviderStore.setState({ providers: activeProviders })
+            
+            // Auto-select first provider if none is selected and no agent is overriding
             if (activeProviders.length > 0 && !selectedProviderId && !selectedAgentId) {
                 selectProvider(activeProviders[0].id)
             }
         }
-    }, [providersData, selectProvider, selectedProviderId, selectedAgentId])
+    }, [providersData, selectedProviderId, selectedAgentId, selectProvider])
 
     const handleAgentChange = useCallback((agentId: number | null) => {
         const agent = agents.find(a => a.id === agentId)
@@ -90,6 +92,7 @@ function ProviderModelSelector() {
         const match = freshData?.find(p => p.id === providerId)
         const derivedModels = match?.models || []
 
+        // Reset model selection to avoid mismatch with new provider
         useModelStore.setState({ selectedModelId: null })
 
         if (derivedModels.length > 0) {
@@ -127,7 +130,7 @@ function ProviderModelSelector() {
 
     const canSend = !!selectedProviderId && !!selectedModel
     return (
-        <div className="bg-surface/30 border border-white/5 backdrop-blur-md rounded-2xl p-5 space-y-4 shadow-glass">
+        <div className="glass-surface rounded-panel p-lg space-y-md">
             <AgentSelector
                 agents={agents}
                 selectedAgentId={selectedAgentId}
@@ -135,10 +138,10 @@ function ProviderModelSelector() {
                 isLoading={agentsLoading}
             />
 
-            <div className="pt-2 border-t border-gray-100 flex flex-col space-y-4">
+            <div className="pt-2 border-t border-white/5 flex flex-col space-y-4">
                 <div className="relative">
                     {isProviderOverridden && (
-                        <span className="absolute -top-2 right-0 bg-yellow-100 text-yellow-800 text-[10px] px-1.5 py-0.5 rounded font-medium z-10">
+                        <span className="absolute -top-2 right-0 badge-warning text-[10px] z-10">
                             Overridden
                         </span>
                     )}
@@ -153,7 +156,7 @@ function ProviderModelSelector() {
 
                 <div className="relative">
                     {isModelOverridden && (
-                        <span className="absolute -top-2 right-0 bg-yellow-100 text-yellow-800 text-[10px] px-1.5 py-0.5 rounded font-medium z-10">
+                        <span className="absolute -top-2 right-0 badge-warning text-[10px] z-10">
                             Overridden
                         </span>
                     )}

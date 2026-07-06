@@ -75,7 +75,8 @@ export const chatApi = {
           break
         }
 
-        buffer += decoder.decode(value, { stream: true })
+        const decoded = decoder.decode(value, { stream: true })
+        buffer += decoded
         const lines = buffer.split('\n')
         buffer = lines.pop() || ''
 
@@ -83,17 +84,23 @@ export const chatApi = {
           const trimmed = line.trim()
           if (!trimmed || !trimmed.startsWith('data: ')) continue
           const payload = trimmed.slice(6)
-          if (payload === '[DONE]') continue
+          if (payload === '[DONE]') {
+            continue
+          }
           try {
             const parsed = JSON.parse(payload)
             if (parsed.error) {
               throw new Error(parsed.error)
             }
             const content = parsed.content ?? parsed
-            if (typeof content === 'string') onChunk?.(content)
+            if (typeof content === 'string') {
+              onChunk?.(content)
+            }
           } catch (parseErr) {
             if (parseErr instanceof Error && parseErr.message !== 'Unexpected token') throw parseErr
-            if (typeof payload === 'string') onChunk?.(payload)
+            if (typeof payload === 'string') {
+              onChunk?.(payload)
+            }
           }
         }
       }

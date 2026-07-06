@@ -86,15 +86,15 @@ export function AgentTestConsole({ agent, onClose }: AgentTestConsoleProps) {
   const provider = providers.find(p => p.id === result?.provider_id)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-2xl flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-md bg-black/50">
+      <div className="glass-elevated rounded-dialog shadow-elevated w-full max-w-2xl flex flex-col overflow-hidden">
+        <div className="p-lg border-b border-white/5 flex justify-between items-center">
+          <h2 className="text-lg font-semibold text-text font-heading">
             Test Console: {agent.name}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+            className="text-text-muted hover:text-text transition-colors duration-fast"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -102,13 +102,13 @@ export function AgentTestConsole({ agent, onClose }: AgentTestConsoleProps) {
           </button>
         </div>
 
-        <div className="p-4 space-y-4 flex-1 overflow-y-auto">
+        <div className="p-lg space-y-md flex-1 overflow-y-auto">
           <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block text-sm font-medium text-text mb-xs">
               Test Message
             </label>
             <textarea
-              className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 dark:text-white resize-none"
+              className="input-standard w-full resize-none"
               rows={3}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
@@ -122,15 +122,15 @@ export function AgentTestConsole({ agent, onClose }: AgentTestConsoleProps) {
                 type="checkbox"
                 checked={useStreaming}
                 onChange={(e) => setUseStreaming(e.target.checked)}
-                className="rounded"
+                className="accent-accent"
               />
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Live Streaming</span>
+              <span className="text-sm font-medium text-text">Live Streaming</span>
             </label>
 
             <button
               onClick={handleTest}
               disabled={isTesting || !message.trim()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg disabled:opacity-50 transition-colors"
+              className="px-md py-sm bg-accent hover:bg-accent-dark text-white font-medium rounded-button disabled:opacity-50 transition-colors duration-fast focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:outline-none"
             >
               {isTesting ? (isStreaming ? 'Streaming...' : 'Running...') : 'Run Test'}
             </button>
@@ -138,7 +138,7 @@ export function AgentTestConsole({ agent, onClose }: AgentTestConsoleProps) {
             {isStreaming && (
               <button
                 onClick={handleStopStreaming}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors"
+                className="px-md py-sm bg-danger hover:bg-danger/80 text-white font-medium rounded-button transition-colors duration-fast focus-visible:ring-2 focus-visible:ring-danger/30 focus-visible:outline-none"
               >
                 Stop
               </button>
@@ -146,30 +146,30 @@ export function AgentTestConsole({ agent, onClose }: AgentTestConsoleProps) {
           </div>
 
           {error && (
-            <div className="p-3 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-400 text-sm rounded-lg border border-red-200 dark:border-red-800">
+            <div className="p-sm bg-danger/10 text-danger text-sm rounded-input border border-danger/30">
               {error}
             </div>
           )}
 
           {(result || streamedResponse) && (
             <div className="space-y-3">
-              <div className="flex flex-wrap gap-4 text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 p-2 rounded-lg">
+              <div className="flex flex-wrap gap-md text-xs text-text-muted bg-surface/40 p-sm rounded-input">
                 <div>
                   Provider:{' '}
-                  <span className="font-medium text-gray-900 dark:text-gray-200">
+                  <span className="font-medium text-text">
                     {provider?.name || result?.provider_id || 'Default'}
                   </span>
                 </div>
                 <div>
                   Model:{' '}
-                  <span className="font-medium text-gray-900 dark:text-gray-200">
+                  <span className="font-medium text-text">
                     {result?.model || 'Default'}
                   </span>
                 </div>
                 {result?.latency_ms && (
                   <div>
                     Latency:{' '}
-                    <span className="font-medium text-gray-900 dark:text-gray-200">
+                    <span className="font-medium text-text">
                       {result.latency_ms}ms
                     </span>
                   </div>
@@ -177,7 +177,7 @@ export function AgentTestConsole({ agent, onClose }: AgentTestConsoleProps) {
                 {result?.tokens_used !== undefined && result.tokens_used !== null && (
                   <div>
                     Tokens:{' '}
-                    <span className="font-medium text-gray-900 dark:text-gray-200">
+                    <span className="font-medium text-text">
                       {result.tokens_used}
                     </span>
                   </div>
@@ -185,11 +185,11 @@ export function AgentTestConsole({ agent, onClose }: AgentTestConsoleProps) {
               </div>
 
               <div>
-                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Response</h3>
-                <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap max-h-96 overflow-y-auto">
+                <h3 className="text-sm font-medium text-text mb-sm">Response</h3>
+                <div className="p-md bg-surface/40 rounded-input text-sm text-text whitespace-pre-wrap max-h-96 overflow-y-auto">
                   {streamedResponse || result?.response}
                   {isStreaming && (
-                    <span className="inline-block w-2 h-4 ml-1 bg-blue-600 animate-pulse" />
+                    <span className="streaming-cursor" />
                   )}
                 </div>
               </div>
